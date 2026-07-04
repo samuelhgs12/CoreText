@@ -1,4 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
+import ThemeToggle from "../components/ThemeToggle";
 
 function Register() {
 	const navigate = useNavigate();
@@ -11,6 +12,8 @@ function Register() {
 
 	return (
 		<div className="auth-page">
+			<ThemeToggle className="auth-theme-toggle" />
+
 			<section className="auth-card">
 				<p className="eyebrow">Novo usuário</p>
 				<h1>Criar cadastro</h1>
