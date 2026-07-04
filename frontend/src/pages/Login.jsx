@@ -1,4 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import ThemeToggle from "../components/ThemeToggle";
 
 function Login() {
 	const navigate = useNavigate();
@@ -13,6 +14,8 @@ function Login() {
 
 	return (
 		<div className="auth-page">
+			<ThemeToggle className="auth-theme-toggle" />
+
 			<section className="auth-card">
 				<p className="eyebrow">Acesso à plataforma</p>
 				<h1>Entrar no CoreText</h1>
