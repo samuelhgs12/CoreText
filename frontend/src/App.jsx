@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import "./App.css";
 
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -8,6 +9,7 @@ import Files from "./pages/Files";
 import Summary from "./pages/Summary";
 import Profile from "./pages/Profile";
 import Layout from "./components/Layout";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
   return (
@@ -18,12 +20,14 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/cadastro" element={<Register />} />
 
-        <Route element={<Layout />}>
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/upload" element={<Upload />} />
-          <Route path="/arquivos" element={<Files />} />
-          <Route path="/resumos" element={<Summary />} />
-          <Route path="/perfil" element={<Profile />} />
+        <Route element={<ProtectedRoute />}>
+          <Route element={<Layout />}>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/upload" element={<Upload />} />
+            <Route path="/arquivos" element={<Files />} />
+            <Route path="/resumos" element={<Summary />} />
+            <Route path="/perfil" element={<Profile />} />
+          </Route>
         </Route>
       </Routes>
     </BrowserRouter>
