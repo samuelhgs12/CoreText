@@ -6,14 +6,9 @@ from sqlalchemy.orm import Session
 from app.auth import get_current_user
 from app.db import get_db
 from app.models import PDFFile, Summary, User
+from app.routers.errors import summary_generation_http_exception
 from app.schemas import SummaryOut
-from app.services.llm_client import (
-    LLMAuthenticationError,
-    LLMConfigurationError,
-    LLMConnectionError,
-    LLMEmptyResponseError,
-    LLMError,
-)
+from app.services.llm_client import LLMError
 from app.services.pdf_extraction import PDFExtractionError
 from app.services.summarization import generate_individual_summary
 
@@ -42,24 +37,5 @@ def create_individual_summary(
 
     try:
         return generate_individual_summary(db, pdf_file)
-    except PDFExtractionError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
-        ) from exc
-    except (LLMConfigurationError, LLMAuthenticationError) as exc:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Falha na configuração do serviço de LLM.",
-        ) from exc
-    except LLMConnectionError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Serviço de LLM indisponível no momento. Tente novamente mais tarde.",
-        ) from exc
-    except LLMEmptyResponseError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="A LLM não retornou um resumo válido.",
-        ) from exc
-    except LLMError as exc:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+    except (PDFExtractionError, LLMError) as exc:
+        raise summary_generation_http_exception(exc) from exc

@@ -53,6 +53,11 @@ curl -X POST http://127.0.0.1:8000/files -H "X-User-Id: 1" -F "file=@caminho/par
 
 # 3. gerar resumo individual (usando o id do arquivo retornado acima)
 curl -X POST http://127.0.0.1:8000/files/1/summary -H "X-User-Id: 1"
+
+# 4. gerar resumo integrado de múltiplos PDFs (usando os ids dos arquivos)
+curl -X POST http://127.0.0.1:8000/summaries/integrated \
+  -H "X-User-Id: 1" -H "Content-Type: application/json" \
+  -d '{"file_ids": [1, 2]}'
 ```
 
 ## Estrutura
@@ -62,21 +67,24 @@ app/
   main.py                    # entrypoint da API FastAPI
   config.py                  # configurações via variáveis de ambiente (.env)
   db.py                      # engine/sessão SQLAlchemy (SQLite: coretext.db)
-  models.py                  # modelos ORM: User, PDFFile, Summary
+  models.py                  # modelos ORM: User, PDFFile, Summary, IntegratedSummary
   schemas.py                 # schemas Pydantic de request/response
   auth.py                    # autenticação provisória (header X-User-Id)
   routers/
     users.py                 # criação de usuário (provisório)
     files.py                 # upload de PDF (provisório)
     summaries.py             # geração de resumo individual (issue 12)
+    integrated_summaries.py  # geração de resumo integrado de múltiplos PDFs (issue 13)
+    errors.py                # mapeamento de exceções dos serviços de resumo -> HTTPException
   services/
     pdf_extraction.py        # extração de texto de arquivos PDF
     llm_client.py            # cliente de integração com a LLM (Google Gemini)
-    prompts.py               # templates de prompt enviados à LLM
+    prompts.py                # templates de prompt (individual e integrado)
     summarization.py         # orquestra extração + LLM + persistência
 tests/
-  conftest.py                # fixtures que geram PDFs de teste em runtime
+  conftest.py                # fixtures/helpers compartilhados (PDFs, client de teste, LLM falsa)
   test_pdf_extraction.py
   test_llm_client.py
-  test_summaries_api.py      # testes de integração da rota de resumo
+  test_summaries_api.py      # testes de integração do resumo individual
+  test_integrated_summaries_api.py  # testes de integração do resumo integrado
 ```

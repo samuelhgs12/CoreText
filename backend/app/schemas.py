@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class UserCreate(BaseModel):
@@ -29,6 +29,22 @@ class SummaryOut(BaseModel):
 
     id: int
     file_id: int
+    content: str
+    generation_time_ms: float
+    created_at: datetime
+
+
+class IntegratedSummaryRequest(BaseModel):
+    file_ids: list[int] = Field(
+        min_length=1, description="IDs dos arquivos PDF a serem resumidos em conjunto."
+    )
+
+
+class IntegratedSummaryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    file_ids: list[int]
     content: str
     generation_time_ms: float
     created_at: datetime

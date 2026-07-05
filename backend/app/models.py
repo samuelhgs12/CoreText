@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Float, ForeignKey, String, Text
+from sqlalchemy import Column, DateTime, Float, ForeignKey, String, Table, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -42,7 +42,7 @@ class PDFFile(Base):
 
 
 class Summary(Base):
-    """Resumo gerado pela LLM para um PDFFile."""
+    """Resumo individual gerado pela LLM para um único PDFFile (issue 12)."""
 
     __tablename__ = "summaries"
 
@@ -53,3 +53,28 @@ class Summary(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     file: Mapped["PDFFile"] = relationship(back_populates="summaries")
+
+
+integrated_summary_files = Table(
+    "integrated_summary_files",
+    Base.metadata,
+    Column("integrated_summary_id", ForeignKey("integrated_summaries.id"), primary_key=True),
+    Column("file_id", ForeignKey("pdf_files.id"), primary_key=True),
+)
+
+
+class IntegratedSummary(Base):
+    """Resumo consolidado gerado pela LLM a partir de múltiplos PDFFiles (issue 13)."""
+
+    __tablename__ = "integrated_summaries"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    generation_time_ms: Mapped[float] = mapped_column(Float, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+    files: Mapped[list["PDFFile"]] = relationship(secondary=integrated_summary_files)
+
+    @property
+    def file_ids(self) -> list[int]:
+        return [f.id for f in self.files]
