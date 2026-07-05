@@ -36,10 +36,22 @@ function Files() {
   const [feedback, setFeedback] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const selectedCount = selectedIds.size;
   const hasFiles = files.length > 0;
-  const allSelected = hasFiles && selectedCount === files.length;
+  const filteredFiles = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+
+    if (!query) {
+      return files;
+    }
+
+    return files.filter((file) => file.name.toLowerCase().includes(query));
+  }, [files, searchQuery]);
+  const hasVisibleFiles = filteredFiles.length > 0;
+  const visibleSelectedCount = filteredFiles.filter((file) => selectedIds.has(file.id)).length;
+  const allSelected = hasVisibleFiles && visibleSelectedCount === filteredFiles.length;
   const selectedFiles = useMemo(
     () => files.filter((file) => selectedIds.has(file.id)),
     [files, selectedIds]
@@ -93,9 +105,9 @@ function Files() {
 
   useEffect(() => {
     if (selectAllRef.current) {
-      selectAllRef.current.indeterminate = selectedCount > 0 && !allSelected;
+      selectAllRef.current.indeterminate = visibleSelectedCount > 0 && !allSelected;
     }
-  }, [allSelected, selectedCount]);
+  }, [allSelected, visibleSelectedCount]);
 
   function handleToggleFile(fileId) {
     setSelectedIds((currentIds) => {
@@ -112,13 +124,21 @@ function Files() {
   }
 
   function handleToggleAll() {
-    setSelectedIds(() => {
+    setSelectedIds((currentIds) => {
+      const nextIds = new Set(currentIds);
+
       if (allSelected) {
-        return new Set();
+        filteredFiles.forEach((file) => nextIds.delete(file.id));
+      } else {
+        filteredFiles.forEach((file) => nextIds.add(file.id));
       }
 
-      return new Set(files.map((file) => file.id));
+      return nextIds;
     });
+  }
+
+  function handleClearSelection() {
+    setSelectedIds(new Set());
   }
 
   function handleGenerateSummary() {
@@ -178,52 +198,64 @@ function Files() {
 
   return (
     <section className="page-stack files-page">
-      <div className="page-heading">
+      <div className="page-heading files-page-heading">
         <div>
-          <p className="eyebrow">Biblioteca</p>
-          <h1>Arquivos</h1>
+          <h1>Meus arquivos</h1>
           <p className="muted-text">
-            Visualize PDFs enviados, selecione documentos para resumo e gerencie exclusões.
+            Organize, selecione e gerencie seus PDFs enviados.
           </p>
         </div>
       </div>
 
-      <article className="card-surface files-panel">
-        <div className="section-header files-header">
-          <div>
-            <h2>PDFs enviados</h2>
-            <p className="muted-text">
-              {isLoading
-                ? "Carregando arquivos..."
-                : `${files.length} arquivo${files.length === 1 ? "" : "s"} encontrado${
-                    files.length === 1 ? "" : "s"
-                  }`}
-            </p>
-          </div>
+      <article className="card-surface files-selection-bar">
+        <div className="selection-summary">
+          <span className={`selection-check ${selectedCount > 0 ? "active" : ""}`}>
+            {selectedCount > 0 ? "✓" : ""}
+          </span>
+          <strong>
+            {selectedCount} selecionado{selectedCount === 1 ? "" : "s"}
+          </strong>
+          {selectedCount > 0 && (
+            <button type="button" className="text-button" onClick={handleClearSelection}>
+              Limpar seleção
+            </button>
+          )}
+        </div>
 
-          <div className="files-actions">
-            <span className="status-pill">
-              {selectedCount} selecionado{selectedCount === 1 ? "" : "s"}
-            </span>
-            <button
-              type="button"
-              className="ghost-button danger-button"
-              disabled={selectedCount === 0 || isDeleting}
-              onClick={() => handleDelete(Array.from(selectedIds))}
-            >
-              <Icon name="trash" size={18} />
-              Excluir
-            </button>
-            <button
-              type="button"
-              className="primary-button"
-              disabled={selectedCount === 0}
-              onClick={handleGenerateSummary}
-            >
-              <Icon name="sparkles" size={18} />
-              Gerar resumo
-            </button>
-          </div>
+        <div className="files-actions">
+          <button
+            type="button"
+            className="ghost-button summary-button"
+            disabled={selectedCount === 0}
+            onClick={handleGenerateSummary}
+          >
+            <Icon name="fileText" size={18} />
+            Gerar resumo
+          </button>
+          <button
+            type="button"
+            className="ghost-button danger-button"
+            disabled={selectedCount === 0 || isDeleting}
+            onClick={() => handleDelete(Array.from(selectedIds))}
+          >
+            <Icon name="trash" size={18} />
+            Excluir
+          </button>
+        </div>
+      </article>
+
+      <article className="card-surface files-panel">
+        <div className="files-toolbar">
+          <label className="files-search">
+            <Icon name="search" size={21} />
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Buscar por nome do arquivo"
+              aria-label="Buscar por nome do arquivo"
+            />
+          </label>
         </div>
 
         {feedback && (
@@ -239,9 +271,9 @@ function Files() {
                 ref={selectAllRef}
                 type="checkbox"
                 checked={allSelected}
-                disabled={!hasFiles || isLoading}
+                disabled={!hasVisibleFiles || isLoading}
                 onChange={handleToggleAll}
-                aria-label="Selecionar todos os arquivos"
+                aria-label="Selecionar arquivos visíveis"
               />
             </label>
             <span>Arquivo</span>
@@ -261,8 +293,16 @@ function Files() {
             </div>
           )}
 
+          {!isLoading && hasFiles && !hasVisibleFiles && (
+            <div className="empty-state">
+              <Icon name="search" size={30} />
+              <strong>Nenhum arquivo encontrado</strong>
+              <p className="muted-text">Tente buscar por outro nome de PDF.</p>
+            </div>
+          )}
+
           {!isLoading &&
-            files.map((file) => {
+            filteredFiles.map((file) => {
               const isSelected = selectedIds.has(file.id);
 
               return (
@@ -305,6 +345,15 @@ function Files() {
                 </div>
               );
             })}
+
+          {!isLoading && hasVisibleFiles && (
+            <div className="files-table-footer">
+              <span>
+                Mostrando {filteredFiles.length} de {files.length} arquivo
+                {files.length === 1 ? "" : "s"}
+              </span>
+            </div>
+          )}
         </div>
       </article>
     </section>
