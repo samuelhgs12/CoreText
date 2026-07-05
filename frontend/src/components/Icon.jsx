@@ -50,6 +50,13 @@ const icons = {
       <path d="M3 10h18" />
     </>
   ),
+  lock: (
+    <>
+      <rect x="5" y="11" width="14" height="10" rx="2" />
+      <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+      <path d="M12 15v2" />
+    </>
+  ),
   home: (
     <>
       <path d="m3 11 9-8 9 8" />
@@ -71,6 +78,12 @@ const icons = {
       <circle cx="5" cy="12" r="1" />
     </>
   ),
+  mail: (
+    <>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="m3 7 9 6 9-6" />
+    </>
+  ),
   moon: (
     <path d="M21 14.5A8.5 8.5 0 0 1 9.5 3 7 7 0 1 0 21 14.5Z" />
   ),
@@ -80,6 +93,18 @@ const icons = {
       <path d="M4 12A8 8 0 0 1 17.7 6.3" />
       <path d="M18 2v5h-5" />
       <path d="M6 22v-5h5" />
+    </>
+  ),
+  search: (
+    <>
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" />
+    </>
+  ),
+  shield: (
+    <>
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
+      <path d="m9 12 2 2 4-4" />
     </>
   ),
   sparkles: (

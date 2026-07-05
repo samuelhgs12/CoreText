@@ -1,0 +1,22 @@
+{
+  "date": "2026-07-05",
+  "notes": "Dados reais coletados com scripts/benchmark_summaries.py (chamadas reais à API Gemini, modelo gemini-2.5-flash), agregados manualmente a partir de 3 execuções parciais do script no mesmo dia. Uma execução única e contínua de 3x3 cenários não foi possível porque a cota diária gratuita da API (20 requisições/dia para gemini-2.5-flash) se esgotou no meio da terceira execução -- ver 'Limitações encontradas' no relatório docs/PERFORMANCE.md. A partir dessa execução, o script foi corrigido para registrar falhas parciais em vez de abortar (ver failures em execuções futuras).",
+  "pdf_metadata": {
+    "pequeno": { "palavras": 136, "paginas": 1 },
+    "medio": { "palavras": 650, "paginas": 3 }
+  },
+  "measurements_ms": {
+    "individual_pequeno": [4078, 7639, 4309, 7448, 5028, 5930, 3923, 3512, 7481],
+    "individual_medio": [5560, 10399, 6775, 5842, 12417, 11979, 12540],
+    "integrado_pequeno_medio": [8324, 11878, 9172, 10830]
+  },
+  "summary_ms": {
+    "individual_pequeno": { "n": 9, "min": 3512, "max": 7639, "avg": 5483, "median": 5028, "stdev": 1680, "under_30s": true },
+    "individual_medio": { "n": 7, "min": 5560, "max": 12540, "avg": 9359, "median": 10399, "stdev": 3186, "under_30s": true },
+    "integrado_pequeno_medio": { "n": 4, "min": 8324, "max": 11878, "avg": 10051, "median": 10001, "stdev": 1602, "under_30s": true }
+  },
+  "failed_attempts": {
+    "reason": "429 RESOURCE_EXHAUSTED / 503 UNAVAILABLE (limite de taxa e cota diária da API Gemini free tier)",
+    "count_observed": 11
+  }
+}

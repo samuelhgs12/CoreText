@@ -1,10 +1,13 @@
 import { useNavigate } from "react-router-dom";
+import { getCurrentUser, logout } from "../services/authService";
+import ThemeToggle from "./ThemeToggle";
 
 function Header() {
   const navigate = useNavigate();
+  const currentUser = getCurrentUser();
 
   const handleLogout = () => {
-    localStorage.removeItem("coretext-token");
+    logout();
     navigate("/login");
   };
 
@@ -16,7 +19,8 @@ function Header() {
       </div>
 
       <div className="topbar-actions">
-        <span className="status-pill">Área interna</span>
+        <ThemeToggle />
+        <span className="status-pill">{currentUser?.name || "Área interna"}</span>
         <button type="button" className="ghost-button" onClick={handleLogout}>
           Sair
         </button>
