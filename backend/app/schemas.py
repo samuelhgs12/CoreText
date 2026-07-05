@@ -20,6 +20,8 @@ class FileOut(BaseModel):
 
     id: int
     filename: str
+    content_type: str
+    file_size_bytes: int
     owner_id: int
     uploaded_at: datetime
 

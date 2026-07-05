@@ -17,13 +17,19 @@ from app.models import User
 
 
 def get_current_user(
-    x_user_id: int = Header(
-        ...,
+    x_user_id: int | None = Header(
+        None,
         alias="X-User-Id",
         description="ID do usuário autenticado (placeholder provisório de autenticação)",
     ),
     db: Session = Depends(get_db),
 ) -> User:
+    if x_user_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Usuário não autenticado.",
+        )
+
     user = db.get(User, x_user_id)
     if user is None:
         raise HTTPException(
