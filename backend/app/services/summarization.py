@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import time
 
 from sqlalchemy.orm import Session
@@ -15,6 +16,22 @@ from app.services.prompts import (
     build_individual_summary_prompt,
     build_integrated_summary_prompt,
 )
+
+logger = logging.getLogger(__name__)
+
+# Meta de desempenho definida na issue 18: a geração de resumo deve se manter
+# abaixo desse limite sempre que possível.
+PERFORMANCE_TARGET_MS = 30_000
+
+
+def _warn_if_slow(scenario: str, generation_time_ms: float) -> None:
+    if generation_time_ms > PERFORMANCE_TARGET_MS:
+        logger.warning(
+            "Geração de resumo (%s) levou %.0fms, acima da meta de %.0fms.",
+            scenario,
+            generation_time_ms,
+            PERFORMANCE_TARGET_MS,
+        )
 
 
 def generate_individual_summary(
@@ -46,6 +63,7 @@ def generate_individual_summary(
     )
 
     generation_time_ms = (time.perf_counter() - start) * 1000
+    _warn_if_slow("individual", generation_time_ms)
 
     summary = Summary(
         file_id=pdf_file.id,
@@ -91,6 +109,7 @@ def generate_integrated_summary(
     )
 
     generation_time_ms = (time.perf_counter() - start) * 1000
+    _warn_if_slow("integrado", generation_time_ms)
 
     summary = IntegratedSummary(content=summary_text, generation_time_ms=generation_time_ms)
     summary.files = pdf_files

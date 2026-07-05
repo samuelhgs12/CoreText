@@ -60,6 +60,18 @@ curl -X POST http://127.0.0.1:8000/summaries/integrated \
   -d '{"file_ids": [1, 2]}'
 ```
 
+## Desempenho da geração de resumos
+
+O tempo de geração de cada resumo é registrado no banco (`generation_time_ms`)
+e a aplicação loga um aviso se ultrapassar 30 segundos. Resultados medidos,
+metodologia e limitações encontradas (ex.: cota diária da API gratuita do
+Gemini) estão documentados em [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md).
+Para reproduzir a medição:
+
+```bash
+python scripts/benchmark_summaries.py --runs 3 --delay 15
+```
+
 ## Estrutura
 
 ```
@@ -81,10 +93,17 @@ app/
     llm_client.py            # cliente de integração com a LLM (Google Gemini)
     prompts.py                # templates de prompt (individual e integrado)
     summarization.py         # orquestra extração + LLM + persistência
+scripts/
+  benchmark_summaries.py     # benchmark real de desempenho (issue 18)
+  sample_texts.py            # textos de exemplo (pequeno/médio) usados no benchmark
+docs/
+  PERFORMANCE.md             # resultados, metodologia e limitações (issue 18)
+  performance/                # resultados brutos (JSON) de execuções do benchmark
 tests/
   conftest.py                # fixtures/helpers compartilhados (PDFs, client de teste, LLM falsa)
   test_pdf_extraction.py
   test_llm_client.py
   test_summaries_api.py      # testes de integração do resumo individual
   test_integrated_summaries_api.py  # testes de integração do resumo integrado
+  test_summarization_performance.py  # teste do alerta de performance (issue 18)
 ```
