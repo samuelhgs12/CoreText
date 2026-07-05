@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 
 from app.models import IntegratedSummary
-from tests.conftest import create_user, upload_pdf
+from tests.conftest import auth_header, create_user, upload_pdf
 
 
 def test_generate_integrated_summary_success(client: TestClient, tmp_path):
@@ -11,7 +11,7 @@ def test_generate_integrated_summary_success(client: TestClient, tmp_path):
 
     resp = client.post(
         "/summaries/integrated",
-        headers={"X-User-Id": str(user_id)},
+        headers=auth_header(user_id),
         json={"file_ids": [file1, file2]},
     )
 
@@ -31,7 +31,7 @@ def test_integrated_summary_is_persisted_in_database(
 
     resp = client.post(
         "/summaries/integrated",
-        headers={"X-User-Id": str(user_id)},
+        headers=auth_header(user_id),
         json={"file_ids": [file1, file2]},
     )
     summary_id = resp.json()["id"]
@@ -50,7 +50,7 @@ def test_cannot_generate_integrated_summary_with_empty_file_list(client: TestCli
     user_id = create_user(client, "alice")
 
     resp = client.post(
-        "/summaries/integrated", headers={"X-User-Id": str(user_id)}, json={"file_ids": []}
+        "/summaries/integrated", headers=auth_header(user_id), json={"file_ids": []}
     )
 
     assert resp.status_code == 422
@@ -66,7 +66,7 @@ def test_cannot_generate_integrated_summary_with_file_of_another_user(
 
     resp = client.post(
         "/summaries/integrated",
-        headers={"X-User-Id": str(owner_id)},
+        headers=auth_header(owner_id),
         json={"file_ids": [owner_file, other_file]},
     )
 
@@ -79,7 +79,7 @@ def test_integrated_summary_with_nonexistent_file_returns_404(client: TestClient
 
     resp = client.post(
         "/summaries/integrated",
-        headers={"X-User-Id": str(user_id)},
+        headers=auth_header(user_id),
         json={"file_ids": [file1, 9999]},
     )
 
@@ -95,7 +95,7 @@ def test_integrated_summary_returns_422_when_a_pdf_has_no_extractable_text(
 
     resp = client.post(
         "/summaries/integrated",
-        headers={"X-User-Id": str(user_id)},
+        headers=auth_header(user_id),
         json={"file_ids": [file1, file2]},
     )
 

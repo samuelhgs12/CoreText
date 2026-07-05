@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 
 from app.models import PDFFile
 from app.routers import files as files_router
-from tests.conftest import create_user, make_pdf_bytes, upload_pdf
+from tests.conftest import auth_header, create_user, make_pdf_bytes, upload_pdf
 
 
 def test_upload_pdf_success(client: TestClient, test_session_factory, tmp_path):
@@ -13,7 +13,7 @@ def test_upload_pdf_success(client: TestClient, test_session_factory, tmp_path):
 
     resp = client.post(
         "/files",
-        headers={"X-User-Id": str(user_id)},
+        headers=auth_header(user_id),
         files={"file": ("document.pdf", pdf_bytes, "application/pdf")},
     )
 
@@ -40,7 +40,7 @@ def test_upload_rejects_non_pdf_extension(client: TestClient):
 
     resp = client.post(
         "/files",
-        headers={"X-User-Id": str(user_id)},
+        headers=auth_header(user_id),
         files={"file": ("notes.txt", b"%PDF fake content", "application/pdf")},
     )
 
@@ -54,7 +54,7 @@ def test_upload_rejects_invalid_content_type(client: TestClient, tmp_path):
 
     resp = client.post(
         "/files",
-        headers={"X-User-Id": str(user_id)},
+        headers=auth_header(user_id),
         files={"file": ("document.pdf", pdf_bytes, "text/plain")},
     )
 
@@ -67,7 +67,7 @@ def test_upload_rejects_file_with_pdf_extension_but_invalid_content(client: Test
 
     resp = client.post(
         "/files",
-        headers={"X-User-Id": str(user_id)},
+        headers=auth_header(user_id),
         files={"file": ("fake.pdf", b"not a real pdf", "application/pdf")},
     )
 
@@ -82,7 +82,7 @@ def test_upload_rejects_files_above_max_size(client: TestClient, tmp_path, monke
 
     resp = client.post(
         "/files",
-        headers={"X-User-Id": str(user_id)},
+        headers=auth_header(user_id),
         files={"file": ("large.pdf", pdf_bytes, "application/pdf")},
     )
 
@@ -107,7 +107,7 @@ def test_list_files_returns_only_authenticated_user_files(client: TestClient, tm
     alice_file = upload_pdf(client, alice_id, tmp_path, "alice.pdf").json()
     upload_pdf(client, bob_id, tmp_path, "bob.pdf")
 
-    resp = client.get("/files", headers={"X-User-Id": str(alice_id)})
+    resp = client.get("/files", headers=auth_header(alice_id))
 
     assert resp.status_code == 200, resp.text
     body = resp.json()
@@ -126,7 +126,7 @@ def test_get_file_returns_authenticated_user_file(client: TestClient, tmp_path):
     user_id = create_user(client, "alice")
     uploaded_file = upload_pdf(client, user_id, tmp_path, "document.pdf").json()
 
-    resp = client.get(f"/files/{uploaded_file['id']}", headers={"X-User-Id": str(user_id)})
+    resp = client.get(f"/files/{uploaded_file['id']}", headers=auth_header(user_id))
 
     assert resp.status_code == 200, resp.text
     body = resp.json()
@@ -140,7 +140,7 @@ def test_get_file_of_another_user_is_blocked(client: TestClient, tmp_path):
     other_id = create_user(client, "bob")
     uploaded_file = upload_pdf(client, owner_id, tmp_path, "document.pdf").json()
 
-    resp = client.get(f"/files/{uploaded_file['id']}", headers={"X-User-Id": str(other_id)})
+    resp = client.get(f"/files/{uploaded_file['id']}", headers=auth_header(other_id))
 
     assert resp.status_code == 403
 
@@ -148,7 +148,7 @@ def test_get_file_of_another_user_is_blocked(client: TestClient, tmp_path):
 def test_get_nonexistent_file_returns_404(client: TestClient):
     user_id = create_user(client, "alice")
 
-    resp = client.get("/files/9999", headers={"X-User-Id": str(user_id)})
+    resp = client.get("/files/9999", headers=auth_header(user_id))
 
     assert resp.status_code == 404
 
@@ -167,7 +167,7 @@ def test_delete_file_removes_database_record_and_stored_file(
         session.close()
     assert stored_path.exists()
 
-    resp = client.delete(f"/files/{uploaded_file['id']}", headers={"X-User-Id": str(user_id)})
+    resp = client.delete(f"/files/{uploaded_file['id']}", headers=auth_header(user_id))
 
     assert resp.status_code == 204, resp.text
     assert not stored_path.exists()
@@ -193,7 +193,7 @@ def test_delete_file_of_another_user_is_blocked(
     finally:
         session.close()
 
-    resp = client.delete(f"/files/{uploaded_file['id']}", headers={"X-User-Id": str(other_id)})
+    resp = client.delete(f"/files/{uploaded_file['id']}", headers=auth_header(other_id))
 
     assert resp.status_code == 403
     assert stored_path.exists()
@@ -208,7 +208,7 @@ def test_delete_file_of_another_user_is_blocked(
 def test_delete_nonexistent_file_returns_404(client: TestClient):
     user_id = create_user(client, "alice")
 
-    resp = client.delete("/files/9999", headers={"X-User-Id": str(user_id)})
+    resp = client.delete("/files/9999", headers=auth_header(user_id))
 
     assert resp.status_code == 404
 

@@ -13,14 +13,18 @@ def _utcnow() -> datetime:
 class User(Base):
     """Usuário da aplicação.
 
-    Provisório: sem senha/credenciais reais, pois a autenticação definitiva
-    ainda não foi implementada por outra parte do time.
+    Mantém `username` para compatibilidade com o fluxo legado dos testes, mas
+    já armazena credenciais reais para o sistema de autenticação.
     """
 
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     username: Mapped[str] = mapped_column(String(150), unique=True, nullable=False)
+    full_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
+    password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    password_salt: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     files: Mapped[list["PDFFile"]] = relationship(back_populates="owner")

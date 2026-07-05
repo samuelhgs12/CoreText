@@ -28,37 +28,42 @@ uvicorn app.main:app --reload
 pytest
 ```
 
-## Autenticação e upload (provisórios)
+## Autenticação e upload
 
-A autenticação real e o upload/armazenamento de arquivos ainda não foram
-implementados por essa parte do time. Para permitir testar a geração de
-resumos (issue 12), este backend inclui versões **provisórias**:
+O backend já expõe o fluxo real de autenticação por token, além de manter
+compatibilidade com o fluxo de API esperado pelo frontend.
 
-- `POST /users` — cria um usuário (`{"username": "..."}`), retorna um `id`.
-- `POST /files` — upload de um PDF (`multipart/form-data`, campo `file`),
-  requer o header `X-User-Id: <id do usuário>` para associar o dono.
-- `X-User-Id` também é exigido nas rotas protegidas (ex.: gerar resumo) como
-  substituto do token/sessão real. Isso deve ser trocado pela integração de
-  autenticação de verdade assim que ela for implementada — apenas
-  `app/auth.py` deve precisar mudar.
+- `POST /auth/register` — cria usuário com `full_name`, `email` e `password` e retorna `access_token`.
+- `POST /auth/login` — autentica com `email` e `password` e retorna `access_token`.
+- `GET /auth/me` — retorna o usuário autenticado a partir do `Authorization: Bearer <token>`.
+- `PATCH /auth/me` — atualiza `full_name` e/ou `email` do usuário autenticado.
+- `POST /files` e rotas protegidas — exigem `Authorization: Bearer <token>`.
 
 Fluxo de teste manual:
 
 ```bash
 # 1. criar usuário
-curl -X POST http://127.0.0.1:8000/users -H "Content-Type: application/json" -d '{"username":"alice"}'
+curl -X POST http://127.0.0.1:8000/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"full_name":"Alice Example","email":"alice@example.com","password":"12345678"}'
 
-# 2. upload de PDF (usando o id retornado acima)
-curl -X POST http://127.0.0.1:8000/files -H "X-User-Id: 1" -F "file=@caminho/para/arquivo.pdf"
+# 2. fazer login
+curl -X POST http://127.0.0.1:8000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"alice@example.com","password":"12345678"}'
 
-# 3. gerar resumo individual (usando o id do arquivo retornado acima)
-curl -X POST http://127.0.0.1:8000/files/1/summary -H "X-User-Id: 1"
+# 3. upload de PDF com o token retornado acima
+curl -X POST http://127.0.0.1:8000/files \
+  -H "Authorization: Bearer <token>" \
+  -F "file=@caminho/para/arquivo.pdf"
 
-# 4. gerar resumo integrado de múltiplos PDFs (usando os ids dos arquivos)
-curl -X POST http://127.0.0.1:8000/summaries/integrated \
-  -H "X-User-Id: 1" -H "Content-Type: application/json" \
-  -d '{"file_ids": [1, 2]}'
+# 4. gerar resumo individual
+curl -X POST http://127.0.0.1:8000/files/1/summary \
+  -H "Authorization: Bearer <token>"
 ```
+
+`POST /users` continua disponível apenas como criação legada de usuário usada
+pelos testes existentes enquanto a migração completa não é concluída.
 
 ## Desempenho da geração de resumos
 
@@ -81,8 +86,9 @@ app/
   db.py                      # engine/sessão SQLAlchemy (SQLite: coretext.db)
   models.py                  # modelos ORM: User, PDFFile, Summary, IntegratedSummary
   schemas.py                 # schemas Pydantic de request/response
-  auth.py                    # autenticação provisória (header X-User-Id)
+  auth.py                    # autenticação por token + compatibilidade legada
   routers/
+    auth.py                  # registro, login e usuário atual
     users.py                 # criação de usuário (provisório)
     files.py                 # upload de PDF (provisório)
     summaries.py             # geração de resumo individual (issue 12)
