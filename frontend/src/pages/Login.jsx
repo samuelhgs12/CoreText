@@ -1,54 +1,188 @@
+import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import Icon from "../components/Icon";
 import ThemeToggle from "../components/ThemeToggle";
+import { login } from "../services/authService";
 
 function Login() {
-	const navigate = useNavigate();
-	const location = useLocation();
-	const redirectTo = location.state?.from || "/dashboard";
+  const navigate = useNavigate();
+  const location = useLocation();
+  const redirectTo = location.state?.from || "/dashboard";
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+  });
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-	const handleSubmit = (event) => {
-		event.preventDefault();
-		localStorage.setItem("coretext-token", "demo-token");
-		navigate(redirectTo, { replace: true });
-	};
+  function handleChange(event) {
+    const { name, value } = event.target;
 
-	return (
-		<div className="auth-page">
-			<ThemeToggle className="auth-theme-toggle" />
+    setFormData((currentData) => ({
+      ...currentData,
+      [name]: value,
+    }));
+  }
 
-			<section className="auth-card">
-				<p className="eyebrow">Acesso à plataforma</p>
-				<h1>Entrar no CoreText</h1>
-				<p className="muted-text">Use a tela abaixo para simular o login da demonstração.</p>
+  async function handleSubmit(event) {
+    event.preventDefault();
+    setError("");
+    setIsSubmitting(true);
 
-				<form className="auth-form" onSubmit={handleSubmit}>
-					<label className="field">
-						<span>E-mail</span>
-						<input type="email" placeholder="voce@exemplo.com" required />
-					</label>
+    try {
+      await login(formData);
+      navigate(redirectTo, { replace: true });
+    } catch (authError) {
+      setError(authError.message || "Não foi possível fazer login. Tente novamente.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
-					<label className="field">
-						<span>Senha</span>
-						<input type="password" placeholder="••••••••" required />
-					</label>
+  return (
+    <div className="auth-page">
+      <ThemeToggle className="auth-theme-toggle" />
 
-					<button type="submit" className="primary-button">Entrar</button>
-				</form>
+      <section className="auth-visual auth-visual-login">
+        <div className="auth-brand">
+          <span className="brand-mark">
+            <span />
+            <span />
+            <span />
+          </span>
+          <strong>CoreText</strong>
+        </div>
 
-				<p className="auth-footer">
-					Não tem conta? <Link to="/cadastro">Criar cadastro</Link>
-				</p>
-			</section>
+        <div className="auth-copy">
+          <h1>
+            Gerencie seus PDFs e gere resumos com IA de forma{" "}
+            <span>rápida e inteligente.</span>
+          </h1>
+          <p>
+            Organize, analise e extraia insights dos seus documentos com o poder da
+            Inteligência Artificial.
+          </p>
+        </div>
 
-			<section className="auth-aside card-surface">
-				<span className="status-pill">Demo</span>
-				<h2>Organize documentos, uploads e resumos em uma única base visual.</h2>
-				<p className="muted-text">
-					A tela de login prepara o acesso às áreas internas e redireciona para o dashboard.
-				</p>
-			</section>
-		</div>
-	);
+        <div className="auth-illustration login-illustration" aria-hidden="true">
+          <div className="mock-document">
+            <span className="pdf-ribbon">PDF</span>
+            <span />
+            <span />
+            <span />
+            <span />
+            <span />
+            <div className="mock-image" />
+            <div className="mock-search">
+              <Icon name="search" size={34} />
+            </div>
+          </div>
+
+          <div className="insight-card insight-card-purple">
+            <span>
+              <Icon name="sparkles" size={30} />
+            </span>
+            <div>
+              <strong>Resumo gerado com IA</strong>
+              <em />
+              <em />
+            </div>
+          </div>
+
+          <div className="insight-card insight-card-green">
+            <span>
+              <Icon name="shield" size={30} />
+            </span>
+            <div>
+              <strong>Informações extraídas</strong>
+              <em />
+              <em />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="auth-card">
+        <h1>Entrar</h1>
+        <p className="muted-text">Bem-vindo de volta! Faça login para continuar.</p>
+
+        <form className="auth-form" onSubmit={handleSubmit}>
+          <label className="field">
+            <span>E-mail</span>
+            <div className="input-shell">
+              <Icon name="mail" className="input-icon" size={21} />
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="seu@email.com"
+                autoComplete="email"
+                disabled={isSubmitting}
+                required
+              />
+            </div>
+          </label>
+
+          <label className="field">
+            <span>Senha</span>
+            <div className="input-shell">
+              <Icon name="lock" className="input-icon" size={21} />
+              <input
+                type={showPassword ? "text" : "password"}
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="••••••••"
+                autoComplete="current-password"
+                disabled={isSubmitting}
+                required
+              />
+              <button
+                type="button"
+                className="field-icon-button"
+                aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                onClick={() => setShowPassword((currentValue) => !currentValue)}
+              >
+                <Icon name="eye" size={20} />
+              </button>
+            </div>
+          </label>
+
+          {error && <p className="auth-error" role="alert">{error}</p>}
+
+          <div className="auth-row">
+            <label className="check-field">
+              <input type="checkbox" />
+              <span>Lembrar-me</span>
+            </label>
+
+            <a href="#recuperar-senha">Esqueci minha senha</a>
+          </div>
+
+          <button type="submit" className="primary-button" disabled={isSubmitting}>
+            {isSubmitting ? "Entrando..." : "Entrar"}
+          </button>
+        </form>
+
+        <div className="auth-divider">
+          <span />
+          <p>ou</p>
+          <span />
+        </div>
+
+        <p className="auth-footer">
+          Não tem conta? <Link to="/cadastro">Criar conta</Link>
+        </p>
+
+        <p className="auth-safe-note">
+          <Icon name="shield" size={18} />
+          Seus dados estão protegidos com segurança de ponta a ponta.
+        </p>
+      </section>
+    </div>
+  );
 }
 
 export default Login;

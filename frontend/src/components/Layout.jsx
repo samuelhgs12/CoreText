@@ -1,12 +1,14 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import Icon from "./Icon";
 import ThemeToggle from "./ThemeToggle";
+import { getCurrentUser, logout } from "../services/authService";
 
 function Layout() {
   const navigate = useNavigate();
+  const currentUser = getCurrentUser();
 
   function handleLogout() {
-    localStorage.removeItem("coretext-token");
+    logout();
     navigate("/login");
   }
 
@@ -69,7 +71,7 @@ function Layout() {
               <Icon name="bell" size={22} />
             </button>
             <span className="avatar-small">K</span>
-            <strong>Kayke</strong>
+            <strong>{currentUser?.name || "Kayke"}</strong>
             <Icon name="chevronDown" size={18} />
           </div>
         </header>
