@@ -1,7 +1,7 @@
 from collections.abc import Generator
 from pathlib import Path
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 DB_PATH = Path(__file__).resolve().parent.parent / "coretext.db"
@@ -27,3 +27,29 @@ def init_db() -> None:
     from app import models  # noqa: F401  garante que os modelos sejam registrados em Base
 
     Base.metadata.create_all(bind=engine)
+    _ensure_pdf_file_metadata_columns()
+
+
+def _ensure_pdf_file_metadata_columns() -> None:
+    inspector = inspect(engine)
+    if "pdf_files" not in inspector.get_table_names():
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("pdf_files")}
+    statements = []
+    if "content_type" not in existing_columns:
+        statements.append(
+            "ALTER TABLE pdf_files "
+            "ADD COLUMN content_type VARCHAR(100) NOT NULL DEFAULT 'application/pdf'"
+        )
+    if "file_size_bytes" not in existing_columns:
+        statements.append(
+            "ALTER TABLE pdf_files ADD COLUMN file_size_bytes INTEGER NOT NULL DEFAULT 0"
+        )
+
+    if not statements:
+        return
+
+    with engine.begin() as connection:
+        for statement in statements:
+            connection.execute(text(statement))
