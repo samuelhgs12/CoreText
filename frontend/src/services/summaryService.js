@@ -50,6 +50,18 @@ export async function listSummaries() {
   return summaries.map(normalizeHistorySummary);
 }
 
+export async function deleteSummary(summaryId) {
+  const [summaryType, rawId] = String(summaryId).split("-");
+
+  if (!summaryType || !rawId) {
+    throw new Error("Resumo inválido para exclusão.");
+  }
+
+  await apiRequest(`/summaries/${summaryType}/${rawId}`, {
+    method: "DELETE",
+  });
+}
+
 export async function generateSummary({ mode = "individual", fileIds = [], fileNames = [] }) {
   if (!fileIds.length) {
     throw new Error("Selecione pelo menos um arquivo para gerar resumo.");

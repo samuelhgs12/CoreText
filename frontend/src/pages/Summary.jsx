@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import Icon from "../components/Icon";
-import { generateSummary, listSummaries } from "../services/summaryService";
+import { deleteSummary, generateSummary, listSummaries } from "../services/summaryService";
 
 function formatDate(date) {
   return new Intl.DateTimeFormat("pt-BR", {
@@ -85,7 +85,15 @@ function SummaryDisplay({ summary }) {
   );
 }
 
-function SummaryHistory({ summaries, selectedSummaryId, isLoading, error, onSelectSummary }) {
+function SummaryHistory({
+  summaries,
+  selectedSummaryId,
+  deletingSummaryId,
+  isLoading,
+  error,
+  onSelectSummary,
+  onDeleteSummary,
+}) {
   return (
     <article className="card-surface summary-history-card">
       <div className="section-header">
@@ -119,24 +127,34 @@ function SummaryHistory({ summaries, selectedSummaryId, isLoading, error, onSele
             const isIntegrated = summary.type === "integrated";
 
             return (
-              <button
-                type="button"
+              <div
                 className={`summary-history-item ${isSelected ? "active" : ""}`}
                 key={summary.id}
-                onClick={() => onSelectSummary(summary)}
               >
-                <span className={`status-badge ${isIntegrated ? "progress" : "success"}`}>
-                  {isIntegrated ? "Integrado" : "Individual"}
-                </span>
-                <div>
-                  <strong>{summary.title || summary.fileName}</strong>
-                  <p className="muted-text">
-                    {summary.files.length} arquivo{summary.files.length === 1 ? "" : "s"} •{" "}
-                    {formatDate(summary.generatedAt)}
-                  </p>
-                </div>
-                <Icon name="chevronRight" size={18} />
-              </button>
+                <button type="button" onClick={() => onSelectSummary(summary)}>
+                  <span className={`status-badge ${isIntegrated ? "progress" : "success"}`}>
+                    {isIntegrated ? "Integrado" : "Individual"}
+                  </span>
+                  <div>
+                    <strong>{summary.title || summary.fileName}</strong>
+                    <p className="muted-text">
+                      {summary.files.length} arquivo{summary.files.length === 1 ? "" : "s"} •{" "}
+                      {formatDate(summary.generatedAt)}
+                    </p>
+                  </div>
+                  <Icon name="chevronRight" size={18} />
+                </button>
+
+                <button
+                  type="button"
+                  className="icon-button danger-icon-button"
+                  disabled={deletingSummaryId === summary.id}
+                  onClick={() => onDeleteSummary(summary)}
+                  aria-label={`Excluir ${summary.title || summary.fileName}`}
+                >
+                  <Icon name="trash" size={18} />
+                </button>
+              </div>
             );
           })}
         </div>
@@ -157,6 +175,7 @@ function Summary() {
   const [historyError, setHistoryError] = useState("");
   const [isLoading, setIsLoading] = useState(Boolean(fileIds.length));
   const [isHistoryLoading, setIsHistoryLoading] = useState(true);
+  const [deletingSummaryId, setDeletingSummaryId] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -245,6 +264,32 @@ function Summary() {
     };
   }, [fileIds, fileNames, mode]);
 
+  async function handleDeleteSummary(summaryToDelete) {
+    setDeletingSummaryId(summaryToDelete.id);
+    setHistoryError("");
+    setError("");
+
+    try {
+      await deleteSummary(summaryToDelete.id);
+
+      setSummaryHistory((currentSummaries) => {
+        const nextSummaries = currentSummaries.filter(
+          (item) => item.id !== summaryToDelete.id
+        );
+
+        if (summary?.id === summaryToDelete.id) {
+          setSummary(nextSummaries[0] || null);
+        }
+
+        return nextSummaries;
+      });
+    } catch (deleteError) {
+      setHistoryError(deleteError.message || "Não foi possível excluir o resumo.");
+    } finally {
+      setDeletingSummaryId(null);
+    }
+  }
+
   return (
     <section className="page-stack summary-page">
       <div className="page-heading">
@@ -259,12 +304,14 @@ function Summary() {
       <SummaryHistory
         summaries={summaryHistory}
         selectedSummaryId={summary?.id}
+        deletingSummaryId={deletingSummaryId}
         isLoading={isHistoryLoading}
         error={historyError}
         onSelectSummary={(selectedSummary) => {
           setSummary(selectedSummary);
           setError("");
         }}
+        onDeleteSummary={handleDeleteSummary}
       />
 
       {isLoading && (
