@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import Icon from "./Icon";
 import ThemeToggle from "./ThemeToggle";
@@ -5,7 +6,22 @@ import { getCurrentUser, logout } from "../services/authService";
 
 function Layout() {
   const navigate = useNavigate();
-  const currentUser = getCurrentUser();
+  const [currentUser, setCurrentUser] = useState(() => getCurrentUser());
+  const userInitial = currentUser?.name?.trim()?.[0]?.toUpperCase() || "K";
+
+  useEffect(() => {
+    function handleUserUpdated() {
+      setCurrentUser(getCurrentUser());
+    }
+
+    window.addEventListener("coretext:user-updated", handleUserUpdated);
+    window.addEventListener("storage", handleUserUpdated);
+
+    return () => {
+      window.removeEventListener("coretext:user-updated", handleUserUpdated);
+      window.removeEventListener("storage", handleUserUpdated);
+    };
+  }, []);
 
   function handleLogout() {
     logout();
@@ -67,9 +83,14 @@ function Layout() {
         <header className="topbar">
           <div className="topbar-actions">
             <ThemeToggle />
-            <span className="avatar-small">K</span>
+            <span className="avatar-small">
+              {currentUser?.avatarUrl ? (
+                <img src={currentUser.avatarUrl} alt="Foto de perfil" />
+              ) : (
+                userInitial
+              )}
+            </span>
             <strong>{currentUser?.name || "Kayke"}</strong>
-            <Icon name="chevronDown" size={18} />
           </div>
         </header>
 
