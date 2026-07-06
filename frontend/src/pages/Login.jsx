@@ -9,7 +9,7 @@ function Login() {
   const location = useLocation();
   const redirectTo = location.state?.from || "/dashboard";
   const [formData, setFormData] = useState({
-    email: "",
+    identifier: "",
     password: "",
   });
   const [error, setError] = useState("");
@@ -109,16 +109,16 @@ function Login() {
 
         <form className="auth-form" onSubmit={handleSubmit}>
           <label className="field">
-            <span>E-mail</span>
+            <span>E-mail ou username</span>
             <div className="input-shell">
               <Icon name="mail" className="input-icon" size={21} />
               <input
-                type="email"
-                name="email"
-                value={formData.email}
+                type="text"
+                name="identifier"
+                value={formData.identifier}
                 onChange={handleChange}
-                placeholder="seu@email.com"
-                autoComplete="email"
+                placeholder="seu@email.com ou kayke"
+                autoComplete="username"
                 disabled={isSubmitting}
                 required
               />
