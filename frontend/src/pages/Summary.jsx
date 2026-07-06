@@ -57,7 +57,7 @@ function SummaryDisplay({ summary }) {
         </div>
         <div>
           <span>Origem</span>
-          <strong>{summary.source === "api" ? "Backend" : "Mock demonstrativo"}</strong>
+          <strong>Backend</strong>
         </div>
       </div>
 
