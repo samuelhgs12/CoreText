@@ -1,5 +1,7 @@
 import { apiRequest } from "./api";
 
+const inFlightSummaryRequests = new Map();
+
 function normalizeIndividualSummary(summary, files) {
   const fileName = files[0] || `Arquivo #${summary.file_id}`;
 
@@ -68,21 +70,34 @@ export async function generateSummary({ mode = "individual", fileIds = [], fileN
   }
 
   const shouldGenerateIntegrated = mode === "integrated" || fileIds.length > 1;
+  const requestKey = `${shouldGenerateIntegrated ? "integrated" : "individual"}:${fileIds.join(",")}`;
 
-  if (shouldGenerateIntegrated) {
-    const summary = await apiRequest("/summaries/integrated", {
-      method: "POST",
-      body: JSON.stringify({
-        file_ids: fileIds,
-      }),
-    });
-
-    return normalizeIntegratedSummary(summary, fileNames);
+  if (inFlightSummaryRequests.has(requestKey)) {
+    return inFlightSummaryRequests.get(requestKey);
   }
 
-  const summary = await apiRequest(`/files/${fileIds[0]}/summary`, {
-    method: "POST",
-  });
+  const requestPromise = (async () => {
+    if (shouldGenerateIntegrated) {
+      const summary = await apiRequest("/summaries/integrated", {
+        method: "POST",
+        body: JSON.stringify({
+          file_ids: fileIds,
+        }),
+      });
 
-  return normalizeIndividualSummary(summary, fileNames);
+      return normalizeIntegratedSummary(summary, fileNames);
+    }
+
+    const summary = await apiRequest(`/files/${fileIds[0]}/summary`, {
+      method: "POST",
+    });
+
+    return normalizeIndividualSummary(summary, fileNames);
+  })();
+
+  inFlightSummaryRequests.set(requestKey, requestPromise);
+
+  return requestPromise.finally(() => {
+    inFlightSummaryRequests.delete(requestKey);
+  });
 }
