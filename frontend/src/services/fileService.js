@@ -66,16 +66,3 @@ export async function viewFile(fileId, targetWindow = null) {
     URL.revokeObjectURL(fileUrl);
   }, 60_000);
 }
-
-export async function downloadFile(fileId, filename) {
-  const blob = await apiBlobRequest(`/files/${fileId}/download`);
-  const fileUrl = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-
-  link.href = fileUrl;
-  link.download = filename || "documento.pdf";
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(fileUrl);
-}

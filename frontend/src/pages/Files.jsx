@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Icon from "../components/Icon";
-import { deleteFile, downloadFile, listFiles, viewFile } from "../services/fileService";
+import { deleteFile, listFiles, viewFile } from "../services/fileService";
 
 function formatFileSize(bytes) {
   if (!bytes) {
@@ -212,22 +212,6 @@ function Files() {
     }
   }
 
-  async function handleDownloadFile(file) {
-    setFileActionId(`download-${file.id}`);
-    setFeedback(null);
-
-    try {
-      await downloadFile(file.id, file.name);
-    } catch (error) {
-      setFeedback({
-        type: "error",
-        text: error.message || "Não foi possível baixar o arquivo.",
-      });
-    } finally {
-      setFileActionId(null);
-    }
-  }
-
   return (
     <section className="page-stack files-page">
       <div className="page-heading files-page-heading">
@@ -372,15 +356,6 @@ function Files() {
                       aria-label={`Visualizar ${file.name}`}
                     >
                       <Icon name="eye" size={18} />
-                    </button>
-                    <button
-                      type="button"
-                      className="icon-button"
-                      disabled={fileActionId === `download-${file.id}`}
-                      onClick={() => handleDownloadFile(file)}
-                      aria-label={`Baixar ${file.name}`}
-                    >
-                      <Icon name="download" size={18} />
                     </button>
                     <button
                       type="button"
