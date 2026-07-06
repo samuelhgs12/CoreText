@@ -1,21 +1,9 @@
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
 const AUTH_TOKEN_KEY = "coretext-token";
 const AUTH_USER_KEY = "coretext-user";
-const AUTH_USERS_KEY = "coretext-mock-users";
 
-const demoUsers = [
-  {
-    id: "demo-user",
-    name: "Kayke",
-    username: "kayke",
-    email: "kayke@example.com",
-    password: "12345678",
-  },
-];
-
-function wait(ms = 450) {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
+function resolveUrl(path) {
+  return `${API_BASE_URL}${path}`;
 }
 
 function createAuthError(message) {
@@ -24,50 +12,54 @@ function createAuthError(message) {
   return error;
 }
 
-function getStoredUsers() {
-  const rawUsers = localStorage.getItem(AUTH_USERS_KEY);
+async function parseResponse(response) {
+  const data = await response.json().catch(() => null);
 
-  if (!rawUsers) {
-    return demoUsers;
+  if (!response.ok) {
+    throw createAuthError(
+      data?.detail || "Não foi possível concluir a autenticação. Tente novamente."
+    );
+  }
+
+  return data;
+}
+
+function normalizeUser(user, avatarUrl = "") {
+  return {
+    id: user.id,
+    name: user.full_name || user.username || "Usuário",
+    username: user.username,
+    email: user.email,
+    avatarUrl,
+    createdAt: user.created_at,
+  };
+}
+
+function getStoredAvatarUrl() {
+  const rawProfile = localStorage.getItem("coretext-profile");
+
+  if (!rawProfile) {
+    return "";
   }
 
   try {
-    return [...demoUsers, ...JSON.parse(rawUsers)];
+    return JSON.parse(rawProfile).avatarUrl || "";
   } catch {
-    return demoUsers;
+    return "";
   }
 }
 
-function saveRegisteredUser(user) {
-  const rawUsers = localStorage.getItem(AUTH_USERS_KEY);
-  const users = rawUsers ? JSON.parse(rawUsers) : [];
-  localStorage.setItem(AUTH_USERS_KEY, JSON.stringify([...users, user]));
-}
-
-function createMockToken(user) {
-  return `mock-token-${btoa(`${user.email}:${Date.now()}`)}`;
-}
-
-function createMockId() {
-  if (typeof crypto !== "undefined" && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-
-  return `mock-user-${Date.now()}`;
-}
-
-function persistSession(user) {
-  const token = createMockToken(user);
-  const sessionUser = {
-    id: user.id,
-    name: user.name,
-    username: user.username,
-    email: user.email,
-  };
+function persistSession({ access_token: token, user }) {
+  const sessionUser = normalizeUser(user, getStoredAvatarUrl());
 
   localStorage.setItem(AUTH_TOKEN_KEY, token);
   localStorage.setItem(AUTH_USER_KEY, JSON.stringify(sessionUser));
-  localStorage.setItem("coretext-user-email", user.email);
+
+  if (sessionUser.email) {
+    localStorage.setItem("coretext-user-email", sessionUser.email);
+  }
+
+  window.dispatchEvent(new CustomEvent("coretext:user-updated", { detail: sessionUser }));
 
   return {
     token,
@@ -76,32 +68,30 @@ function persistSession(user) {
 }
 
 export async function login({ identifier, email, password }) {
-  await wait();
-
-  const normalizedIdentifier = (identifier || email || "").trim().toLowerCase();
+  const normalizedIdentifier = (identifier || email || "").trim();
 
   if (!normalizedIdentifier || !password) {
     throw createAuthError("Informe e-mail ou username e senha para continuar.");
   }
 
-  const user = getStoredUsers().find(
-    (candidate) =>
-      candidate.email.toLowerCase() === normalizedIdentifier ||
-      candidate.username?.toLowerCase() === normalizedIdentifier
-  );
+  const response = await fetch(resolveUrl("/auth/login"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      identifier: normalizedIdentifier,
+      email: normalizedIdentifier,
+      password,
+    }),
+  });
 
-  if (!user || user.password !== password) {
-    throw createAuthError("Credenciais inválidas. Verifique os dados e tente novamente.");
-  }
-
-  return persistSession(user);
+  return persistSession(await parseResponse(response));
 }
 
 export async function register({ name, username, email, password }) {
-  await wait();
-
   const normalizedName = name.trim();
-  const normalizedUsername = username.trim().toLowerCase();
+  const normalizedUsername = username.trim();
   const normalizedEmail = email.trim().toLowerCase();
 
   if (!normalizedName || !normalizedUsername || !normalizedEmail || !password) {
@@ -112,40 +102,47 @@ export async function register({ name, username, email, password }) {
     throw createAuthError("A senha deve ter pelo menos 8 caracteres.");
   }
 
-  const users = getStoredUsers();
-  const emailAlreadyExists = users.some(
-    (user) => user.email.toLowerCase() === normalizedEmail
-  );
+  const response = await fetch(resolveUrl("/auth/register"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      full_name: normalizedName,
+      username: normalizedUsername,
+      email: normalizedEmail,
+      password,
+    }),
+  });
 
-  if (emailAlreadyExists) {
-    throw createAuthError("Já existe uma conta cadastrada com este e-mail.");
+  return persistSession(await parseResponse(response));
+}
+
+export async function fetchCurrentUser() {
+  const token = getToken();
+
+  if (!token) {
+    return null;
   }
 
-  const usernameAlreadyExists = users.some(
-    (user) => user.username?.toLowerCase() === normalizedUsername
-  );
+  const response = await fetch(resolveUrl("/auth/me"), {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
 
-  if (usernameAlreadyExists) {
-    throw createAuthError("Já existe uma conta cadastrada com este username.");
-  }
+  const user = normalizeUser(await parseResponse(response), getCurrentUser()?.avatarUrl || "");
+  localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+  window.dispatchEvent(new CustomEvent("coretext:user-updated", { detail: user }));
 
-  const user = {
-    id: createMockId(),
-    name: normalizedName,
-    username: normalizedUsername,
-    email: normalizedEmail,
-    password,
-  };
-
-  saveRegisteredUser(user);
-
-  return persistSession(user);
+  return user;
 }
 
 export function logout() {
   localStorage.removeItem(AUTH_TOKEN_KEY);
   localStorage.removeItem(AUTH_USER_KEY);
   localStorage.removeItem("coretext-user-email");
+  window.dispatchEvent(new CustomEvent("coretext:user-updated", { detail: null }));
 }
 
 export function getToken() {
@@ -190,5 +187,7 @@ export function updateCurrentUser(updates) {
 }
 
 export function isAuthenticated() {
-  return Boolean(getToken());
+  const token = getToken();
+
+  return Boolean(token && token.includes("."));
 }

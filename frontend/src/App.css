@@ -1946,33 +1946,10 @@ button {
   cursor: pointer;
 }
 
-.auth-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-top: 2px;
-  color: #071331;
-}
-
-.auth-row a,
 .auth-footer a {
   color: var(--accent);
   text-decoration: none;
   font-weight: 800;
-}
-
-.check-field {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  cursor: pointer;
-}
-
-.check-field input {
-  width: 20px;
-  height: 20px;
-  accent-color: var(--accent);
 }
 
 .auth-divider {
@@ -2047,7 +2024,6 @@ button {
 :root[data-theme="dark"] .auth-feature-list strong,
 :root[data-theme="dark"] .auth-card h1,
 :root[data-theme="dark"] .field,
-:root[data-theme="dark"] .auth-row,
 :root[data-theme="dark"] .insight-card strong {
   color: var(--text-h);
 }
@@ -2413,11 +2389,6 @@ button {
 
   .auth-card h1 {
     font-size: 34px;
-  }
-
-  .auth-row {
-    align-items: flex-start;
-    flex-direction: column;
   }
 
   .auth-divider {
