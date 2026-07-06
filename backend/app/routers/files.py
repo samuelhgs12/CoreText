@@ -1,7 +1,9 @@
 import uuid
 from pathlib import Path
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
@@ -34,6 +36,22 @@ def _ensure_file_owner(pdf_file: PDFFile, current_user: User) -> None:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Você não tem permissão para acessar este arquivo.",
         )
+
+
+def _get_existing_pdf_path(pdf_file: PDFFile) -> Path:
+    filepath = Path(pdf_file.filepath)
+
+    if not filepath.is_file():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Arquivo físico não encontrado no servidor.",
+        )
+
+    return filepath
+
+
+def _content_disposition(kind: str, filename: str) -> str:
+    return f"{kind}; filename*=UTF-8''{quote(filename)}"
 
 
 def _validate_pdf_metadata(file: UploadFile) -> None:
@@ -131,6 +149,38 @@ def get_file(
     pdf_file = _get_file_or_404(file_id, db)
     _ensure_file_owner(pdf_file, current_user)
     return pdf_file
+
+
+@router.get("/{file_id}/content")
+def view_file(
+    file_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> FileResponse:
+    pdf_file = _get_file_or_404(file_id, db)
+    _ensure_file_owner(pdf_file, current_user)
+
+    return FileResponse(
+        _get_existing_pdf_path(pdf_file),
+        media_type=PDF_CONTENT_TYPE,
+        headers={"Content-Disposition": _content_disposition("inline", pdf_file.filename)},
+    )
+
+
+@router.get("/{file_id}/download")
+def download_file(
+    file_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> FileResponse:
+    pdf_file = _get_file_or_404(file_id, db)
+    _ensure_file_owner(pdf_file, current_user)
+
+    return FileResponse(
+        _get_existing_pdf_path(pdf_file),
+        media_type=PDF_CONTENT_TYPE,
+        headers={"Content-Disposition": _content_disposition("attachment", pdf_file.filename)},
+    )
 
 
 @router.delete("/{file_id}", status_code=status.HTTP_204_NO_CONTENT)

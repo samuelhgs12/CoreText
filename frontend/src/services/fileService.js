@@ -1,4 +1,4 @@
-import { apiRequest } from "./api";
+import { apiBlobRequest, apiRequest } from "./api";
 
 function normalizeFile(file) {
   return {
@@ -50,4 +50,32 @@ export async function deleteFile(fileId) {
   await apiRequest(`/files/${fileId}`, {
     method: "DELETE",
   });
+}
+
+export async function viewFile(fileId, targetWindow = null) {
+  const blob = await apiBlobRequest(`/files/${fileId}/content`);
+  const fileUrl = URL.createObjectURL(blob);
+
+  if (targetWindow) {
+    targetWindow.location.href = fileUrl;
+  } else {
+    window.open(fileUrl, "_blank", "noopener,noreferrer");
+  }
+
+  setTimeout(() => {
+    URL.revokeObjectURL(fileUrl);
+  }, 60_000);
+}
+
+export async function downloadFile(fileId, filename) {
+  const blob = await apiBlobRequest(`/files/${fileId}/download`);
+  const fileUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = fileUrl;
+  link.download = filename || "documento.pdf";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(fileUrl);
 }

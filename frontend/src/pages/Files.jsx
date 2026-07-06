@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Icon from "../components/Icon";
-import { deleteFile, listFiles } from "../services/fileService";
+import { deleteFile, downloadFile, listFiles, viewFile } from "../services/fileService";
 
 function formatFileSize(bytes) {
   if (!bytes) {
@@ -35,6 +35,7 @@ function Files() {
   const [feedback, setFeedback] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [fileActionId, setFileActionId] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
 
   const selectedCount = selectedIds.size;
@@ -188,6 +189,45 @@ function Files() {
     }
   }
 
+  async function handleViewFile(file) {
+    const targetWindow = window.open("about:blank", "_blank");
+
+    if (targetWindow) {
+      targetWindow.opener = null;
+    }
+
+    setFileActionId(`view-${file.id}`);
+    setFeedback(null);
+
+    try {
+      await viewFile(file.id, targetWindow);
+    } catch (error) {
+      targetWindow?.close();
+      setFeedback({
+        type: "error",
+        text: error.message || "Não foi possível visualizar o arquivo.",
+      });
+    } finally {
+      setFileActionId(null);
+    }
+  }
+
+  async function handleDownloadFile(file) {
+    setFileActionId(`download-${file.id}`);
+    setFeedback(null);
+
+    try {
+      await downloadFile(file.id, file.name);
+    } catch (error) {
+      setFeedback({
+        type: "error",
+        text: error.message || "Não foi possível baixar o arquivo.",
+      });
+    } finally {
+      setFileActionId(null);
+    }
+  }
+
   return (
     <section className="page-stack files-page">
       <div className="page-heading files-page-heading">
@@ -324,6 +364,24 @@ function Files() {
                   <span className="status-badge success">{file.status}</span>
 
                   <div className="row-actions">
+                    <button
+                      type="button"
+                      className="icon-button"
+                      disabled={fileActionId === `view-${file.id}`}
+                      onClick={() => handleViewFile(file)}
+                      aria-label={`Visualizar ${file.name}`}
+                    >
+                      <Icon name="eye" size={18} />
+                    </button>
+                    <button
+                      type="button"
+                      className="icon-button"
+                      disabled={fileActionId === `download-${file.id}`}
+                      onClick={() => handleDownloadFile(file)}
+                      aria-label={`Baixar ${file.name}`}
+                    >
+                      <Icon name="download" size={18} />
+                    </button>
                     <button
                       type="button"
                       className="icon-button danger-icon-button"
