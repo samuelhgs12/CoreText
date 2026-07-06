@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import ReactMarkdown from "react-markdown";
 import { Link, useLocation } from "react-router-dom";
 import Icon from "../components/Icon";
 import { deleteSummary, generateSummary, listSummaries } from "../services/summaryService";
@@ -76,9 +77,7 @@ function SummaryDisplay({ summary }) {
       <section className="summary-content-section">
         <h3>Conteúdo do resumo</h3>
         <div className="summary-content">
-          {summary.content.split("\n").map((line, index) => (
-            <p key={`${line}-${index}`}>{line || "\u00A0"}</p>
-          ))}
+          <ReactMarkdown>{summary.content}</ReactMarkdown>
         </div>
       </section>
     </article>
