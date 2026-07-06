@@ -1,14 +1,73 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import Icon from "../components/Icon";
-import {
-  dashboardMetrics,
-  dashboardQuickActions,
-  dashboardSummaries,
-} from "../mocks/dashboardMock";
+import { dashboardQuickActions } from "../mocks/dashboardMock";
+import { getCurrentUser } from "../services/authService";
+import { getDashboard } from "../services/dashboardService";
+
+function formatDate(date) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(date));
+}
 
 function Dashboard() {
-  const userEmail = localStorage.getItem("coretext-user-email") || "kayke@example.com";
-  const userName = "Kayke";
+  const [currentUser, setCurrentUser] = useState(() => getCurrentUser());
+  const [metrics, setMetrics] = useState([]);
+  const [recentSummaries, setRecentSummaries] = useState([]);
+  const [feedback, setFeedback] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const userName = currentUser?.name?.split(" ")?.[0] || "Usuário";
+  const userEmail = currentUser?.email || currentUser?.username || "Conta CoreText";
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadDashboard() {
+      setIsLoading(true);
+      setFeedback(null);
+
+      try {
+        const dashboard = await getDashboard();
+
+        if (!isMounted) {
+          return;
+        }
+
+        setMetrics(dashboard.metrics);
+        setRecentSummaries(dashboard.recentSummaries);
+      } catch (error) {
+        if (!isMounted) {
+          return;
+        }
+
+        setFeedback({
+          type: "error",
+          text: error.message || "Não foi possível carregar os dados do dashboard.",
+        });
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    function handleUserUpdated() {
+      setCurrentUser(getCurrentUser());
+    }
+
+    loadDashboard();
+    window.addEventListener("coretext:user-updated", handleUserUpdated);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener("coretext:user-updated", handleUserUpdated);
+    };
+  }, []);
 
   return (
     <section className="page-stack dashboard-page">
@@ -21,17 +80,36 @@ function Dashboard() {
         </div>
       </div>
 
+      {feedback && (
+        <p className={`feedback-message ${feedback.type}`} role="status">
+          {feedback.text}
+        </p>
+      )}
+
       <div className="metrics-grid">
-        {dashboardMetrics.map((metric) => (
+        {isLoading &&
+          Array.from({ length: 4 }).map((_, index) => (
+            <article className="metric-card" key={index}>
+              <div className="metric-icon blue">
+                <Icon name="refresh" size={24} />
+              </div>
+
+              <div className="metric-content">
+                <p className="muted-text">Carregando</p>
+                <strong>...</strong>
+              </div>
+            </article>
+          ))}
+
+        {!isLoading && metrics.map((metric) => (
           <article className="metric-card" key={metric.label}>
             <div className={`metric-icon ${metric.variant}`}>
               <Icon name={metric.icon} size={24} />
             </div>
 
-            <div>
+            <div className="metric-content">
               <p className="muted-text">{metric.label}</p>
               <strong>{metric.value}</strong>
-              <span>{metric.hint}</span>
             </div>
           </article>
         ))}
@@ -70,7 +148,7 @@ function Dashboard() {
           </div>
 
           <Link to="/perfil" className="ghost-button">
-            Editar perfil
+            Ver perfil
           </Link>
         </article>
       </div>
@@ -78,10 +156,10 @@ function Dashboard() {
       <article className="card-surface">
         <div className="section-header">
           <h2>Resumos recentes</h2>
-          <button type="button" className="text-button">
+          <Link to="/resumos" className="text-button">
             Ver todos
             <Icon name="chevronRight" size={18} />
-          </button>
+          </Link>
         </div>
 
         <div className="summary-table">
@@ -93,8 +171,20 @@ function Dashboard() {
             <span>Ações</span>
           </div>
 
-          {dashboardSummaries.map((item) => (
-            <div className="summary-table-row" key={item.file}>
+          {isLoading && <div className="empty-state">Carregando resumos...</div>}
+
+          {!isLoading && recentSummaries.length === 0 && (
+            <div className="empty-state">
+              <Icon name="sparkles" size={30} />
+              <strong>Nenhum resumo gerado ainda</strong>
+              <p className="muted-text">
+                Selecione arquivos na listagem para gerar seu primeiro resumo.
+              </p>
+            </div>
+          )}
+
+          {!isLoading && recentSummaries.map((item) => (
+            <div className="summary-table-row" key={item.id}>
               <div className="file-info">
                 <span className="file-icon">PDF</span>
 
@@ -116,18 +206,12 @@ function Dashboard() {
                 {item.status}
               </span>
 
-              <span className="muted-text">{item.date}</span>
+              <span className="muted-text">{formatDate(item.date)}</span>
 
               <div className="row-actions">
-                <button type="button" className="icon-button" aria-label="Visualizar resumo">
+                <Link to="/resumos" className="icon-button" aria-label="Visualizar resumo">
                   <Icon name="eye" size={18} />
-                </button>
-                <button type="button" className="icon-button" aria-label="Baixar resumo">
-                  <Icon name="download" size={18} />
-                </button>
-                <button type="button" className="icon-button" aria-label="Mais opções">
-                  <Icon name="more" size={18} />
-                </button>
+                </Link>
               </div>
             </div>
           ))}

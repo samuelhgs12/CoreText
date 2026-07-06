@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import Icon from "../components/Icon";
+import { getDashboard } from "../services/dashboardService";
 import { getProfile, updateProfile } from "../services/profileService";
 
 const initialForm = {
@@ -32,8 +33,10 @@ function Profile() {
   const fileInputRef = useRef(null);
   const [profile, setProfile] = useState(null);
   const [formData, setFormData] = useState(initialForm);
+  const [activityItems, setActivityItems] = useState([]);
   const [feedback, setFeedback] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isActivityLoading, setIsActivityLoading] = useState(true);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
   useEffect(() => {
@@ -72,7 +75,37 @@ function Profile() {
       }
     }
 
+    async function loadActivity() {
+      setIsActivityLoading(true);
+
+      try {
+        const dashboard = await getDashboard();
+
+        if (!isMounted) {
+          return;
+        }
+
+        const wantedLabels = ["PDFs enviados", "Resumos gerados", "Resumos integrados"];
+        setActivityItems(
+          wantedLabels
+            .map((label) => dashboard.metrics.find((metric) => metric.label === label))
+            .filter(Boolean)
+        );
+      } catch {
+        if (!isMounted) {
+          return;
+        }
+
+        setActivityItems([]);
+      } finally {
+        if (isMounted) {
+          setIsActivityLoading(false);
+        }
+      }
+    }
+
     loadProfile();
+    loadActivity();
 
     return () => {
       isMounted = false;
@@ -255,32 +288,34 @@ function Profile() {
 
           <article className="card-surface profile-info-card">
             <h2>Resumo de atividade</h2>
-            <p className="muted-text">Seus últimos 30 dias na plataforma.</p>
+            <p className="muted-text">Dados sincronizados com o dashboard.</p>
 
             <div className="activity-list">
-              <div>
-                <span className="activity-icon blue">
-                  <Icon name="fileText" size={18} />
-                </span>
-                <p>PDFs enviados</p>
-                <strong>42</strong>
-              </div>
+              {isActivityLoading &&
+                ["PDFs enviados", "Resumos gerados", "Resumos integrados"].map((label) => (
+                  <div key={label}>
+                    <span className="activity-icon blue">
+                      <Icon name="refresh" size={18} />
+                    </span>
+                    <p>{label}</p>
+                    <strong>...</strong>
+                  </div>
+                ))}
 
-              <div>
-                <span className="activity-icon green">
-                  <Icon name="sparkles" size={18} />
-                </span>
-                <p>Resumos gerados</p>
-                <strong>31</strong>
-              </div>
+              {!isActivityLoading &&
+                activityItems.map((item) => (
+                  <div key={item.label}>
+                    <span className={`activity-icon ${item.variant}`}>
+                      <Icon name={item.icon} size={18} />
+                    </span>
+                    <p>{item.label}</p>
+                    <strong>{item.value}</strong>
+                  </div>
+                ))}
 
-              <div>
-                <span className="activity-icon purple">
-                  <Icon name="archive" size={18} />
-                </span>
-                <p>Arquivos recentes</p>
-                <strong>12</strong>
-              </div>
+              {!isActivityLoading && activityItems.length === 0 && (
+                <p className="muted-text">Não foi possível carregar a atividade agora.</p>
+              )}
             </div>
 
             <Link to="/dashboard" className="ghost-button profile-dashboard-link">

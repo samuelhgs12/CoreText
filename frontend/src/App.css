@@ -469,40 +469,47 @@ button {
 }
 
 .metric-card {
-  min-height: 126px;
+  min-height: 112px;
   display: flex;
-  align-items: center;
-  gap: 18px;
-  padding: 22px;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 18px 20px;
   border: 1px solid var(--border);
   border-radius: 14px;
   background: var(--surface);
   box-shadow: var(--shadow);
 }
 
+.metric-content {
+  min-width: 0;
+  padding-top: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
 .metric-card p {
-  margin: 0 0 4px;
+  margin: 0;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 15px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .metric-card strong {
   display: block;
+  margin-top: 6px;
   color: var(--text-h);
   font-size: 30px;
-  line-height: 1;
-}
-
-.metric-card span {
-  display: block;
-  margin-top: 10px;
-  color: var(--accent);
-  font-size: 14px;
-  font-weight: 800;
+  line-height: 1.05;
 }
 
 .metric-icon {
   flex: 0 0 auto;
-  width: 56px;
-  height: 56px;
+  width: 52px;
+  height: 52px;
   border-radius: 12px;
   display: grid;
   place-items: center;
