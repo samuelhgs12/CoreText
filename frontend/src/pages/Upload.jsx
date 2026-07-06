@@ -1,27 +1,176 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Icon from "../components/Icon";
+import { listFiles, uploadFile } from "../services/fileService";
 
-const recentUploads = [
-  {
-    name: "Aprendizado de Máquina Avançado.pdf",
-    details: "28 páginas • 2,7 MB",
-    status: "Concluído",
-    date: "21/05/2025, 09:15",
-  },
-  {
-    name: "Redes Neurais e Deep Learning.pdf",
-    details: "36 páginas • 3,4 MB",
-    status: "Concluído",
-    date: "20/05/2025, 16:45",
-  },
-  {
-    name: "Processamento de Linguagem Natural.pdf",
-    details: "22 páginas • 1,8 MB",
-    status: "Em andamento",
-    date: "19/05/2025, 11:02",
-  },
-];
+function formatFileSize(bytes) {
+  if (!bytes) {
+    return "0 KB";
+  }
+
+  const units = ["B", "KB", "MB", "GB"];
+  const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  const value = bytes / 1024 ** index;
+
+  return `${value.toLocaleString("pt-BR", {
+    maximumFractionDigits: value >= 10 ? 0 : 1,
+  })} ${units[index]}`;
+}
+
+function formatDate(date) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(date));
+}
 
 function Upload() {
+  const navigate = useNavigate();
+  const fileInputRef = useRef(null);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [recentUploads, setRecentUploads] = useState([]);
+  const [feedback, setFeedback] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isLoadingRecent, setIsLoadingRecent] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const selectedFileDetails = useMemo(() => {
+    if (!selectedFile) {
+      return "";
+    }
+
+    return formatFileSize(selectedFile.size);
+  }, [selectedFile]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadRecentUploads() {
+      setIsLoadingRecent(true);
+
+      try {
+        const result = await listFiles();
+
+        if (!isMounted) {
+          return;
+        }
+
+        setRecentUploads(result.files.slice(0, 3));
+      } catch (error) {
+        if (!isMounted) {
+          return;
+        }
+
+        setFeedback({
+          type: "error",
+          text: error.message || "Não foi possível carregar seus uploads recentes.",
+        });
+      } finally {
+        if (isMounted) {
+          setIsLoadingRecent(false);
+        }
+      }
+    }
+
+    loadRecentUploads();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  function validateSelectedFile(file) {
+    if (!file) {
+      return false;
+    }
+
+    const hasPdfName = file.name.toLowerCase().endsWith(".pdf");
+    const hasPdfType = file.type === "application/pdf" || file.type === "";
+
+    if (!hasPdfName || !hasPdfType) {
+      setSelectedFile(null);
+      setFeedback({
+        type: "error",
+        text: "Arquivo inválido. Selecione um PDF para continuar.",
+      });
+      return false;
+    }
+
+    setFeedback(null);
+    return true;
+  }
+
+  function handleSelectFile(file) {
+    if (!validateSelectedFile(file)) {
+      return;
+    }
+
+    setSelectedFile(file);
+  }
+
+  function handleInputChange(event) {
+    handleSelectFile(event.target.files?.[0]);
+  }
+
+  function handleDrop(event) {
+    event.preventDefault();
+    setIsDragging(false);
+    handleSelectFile(event.dataTransfer.files?.[0]);
+  }
+
+  function handleRemoveFile() {
+    setSelectedFile(null);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }
+
+  async function handleUpload() {
+    if (!selectedFile) {
+      setFeedback({
+        type: "error",
+        text: "Selecione um PDF antes de enviar.",
+      });
+      return;
+    }
+
+    setIsUploading(true);
+    setFeedback({
+      type: "info",
+      text: "Enviando PDF...",
+    });
+
+    try {
+      const uploadedFile = await uploadFile(selectedFile);
+
+      setRecentUploads((currentUploads) => [
+        uploadedFile,
+        ...currentUploads.filter((file) => file.id !== uploadedFile.id),
+      ].slice(0, 3));
+      setSelectedFile(null);
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+
+      setFeedback({
+        type: "success",
+        text: "PDF enviado com sucesso.",
+      });
+    } catch (error) {
+      setFeedback({
+        type: "error",
+        text: error.message || "Não foi possível enviar o PDF. Tente novamente.",
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  }
+
   return (
     <section className="page-stack">
       <div className="page-heading">
@@ -34,7 +183,15 @@ function Upload() {
       </div>
 
       <article className="card-surface upload-panel">
-        <div className="dropzone">
+        <label
+          className={`dropzone ${isDragging ? "dragging" : ""}`}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setIsDragging(true);
+          }}
+          onDragLeave={() => setIsDragging(false)}
+          onDrop={handleDrop}
+        >
           <div className="pdf-icon">PDF</div>
 
           <h2>Arraste seu arquivo PDF aqui</h2>
@@ -48,71 +205,101 @@ function Upload() {
           </p>
 
           <input
+            ref={fileInputRef}
             type="file"
-            accept="application/pdf"
+            accept="application/pdf,.pdf"
             className="hidden-file-input"
+            disabled={isUploading}
+            onChange={handleInputChange}
           />
-        </div>
+        </label>
 
-        <div className="selected-file">
-          <div className="file-info">
-            <span className="file-icon">PDF</span>
+        {selectedFile && (
+          <div className="selected-file">
+            <div className="file-info">
+              <span className="file-icon">PDF</span>
 
-            <div>
-              <strong>Inteligência Artificial na Educação.pdf</strong>
-              <p className="muted-text">1,2 MB • 14 páginas</p>
+              <div>
+                <strong>{selectedFile.name}</strong>
+                <p className="muted-text">{selectedFileDetails}</p>
+              </div>
             </div>
+
+            <button
+              type="button"
+              className="icon-button"
+              aria-label="Remover arquivo"
+              disabled={isUploading}
+              onClick={handleRemoveFile}
+            >
+              <Icon name="trash" size={18} />
+            </button>
           </div>
+        )}
 
-          <button type="button" className="icon-button" aria-label="Remover arquivo">
-            <Icon name="trash" size={18} />
-          </button>
-        </div>
+        {feedback && (
+          <p className={`feedback-message ${feedback.type}`} role="status">
+            {feedback.text}
+          </p>
+        )}
 
-        <button type="button" className="primary-button upload-button">
+        <button
+          type="button"
+          className="primary-button upload-button"
+          disabled={!selectedFile || isUploading}
+          onClick={handleUpload}
+        >
           <Icon name="cloudUpload" size={20} />
-          Enviar PDF
+          {isUploading ? "Enviando..." : "Enviar PDF"}
         </button>
       </article>
 
       <article className="card-surface">
         <div className="section-header">
           <h2>Uploads recentes</h2>
-          <button type="button" className="text-button">
+          <button type="button" className="text-button" onClick={() => navigate("/arquivos")}>
             Ver todos
             <Icon name="chevronRight" size={18} />
           </button>
         </div>
 
         <div className="recent-list">
-          {recentUploads.map((file) => (
-            <div className="recent-row" key={file.name}>
-              <div className="file-info">
-                <span className="file-icon">PDF</span>
+          {isLoadingRecent && <div className="empty-state">Carregando uploads...</div>}
 
-                <div>
-                  <strong>{file.name}</strong>
-                  <p className="muted-text">{file.details}</p>
-                </div>
-              </div>
-
-              <span
-                className={
-                  file.status === "Concluído"
-                    ? "status-badge success"
-                    : "status-badge progress"
-                }
-              >
-                {file.status}
-              </span>
-
-              <span className="muted-text">{file.date}</span>
-
-              <button type="button" className="icon-button" aria-label="Visualizar upload">
-                <Icon name="eye" size={18} />
-              </button>
+          {!isLoadingRecent && recentUploads.length === 0 && (
+            <div className="empty-state">
+              <Icon name="folder" size={30} />
+              <strong>Nenhum PDF enviado ainda</strong>
+              <p className="muted-text">Os arquivos enviados aparecerão nesta lista.</p>
             </div>
-          ))}
+          )}
+
+          {!isLoadingRecent &&
+            recentUploads.map((file) => (
+              <div className="recent-row" key={file.id}>
+                <div className="file-info">
+                  <span className="file-icon">PDF</span>
+
+                  <div>
+                    <strong>{file.name}</strong>
+                    <p className="muted-text">{formatFileSize(file.sizeBytes)}</p>
+                  </div>
+                </div>
+
+                <span className="status-badge success">{file.status}</span>
+
+                <span className="muted-text">{formatDate(file.uploadedAt)}</span>
+
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label={`Ver ${file.name} na listagem`}
+                  onClick={() => navigate("/arquivos")}
+                >
+                  <Icon name="eye" size={18} />
+                </button>
+              </div>
+            ))}
         </div>
       </article>
     </section>

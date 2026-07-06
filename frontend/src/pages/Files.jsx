@@ -32,7 +32,6 @@ function Files() {
   const selectAllRef = useRef(null);
   const [files, setFiles] = useState([]);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
-  const [dataSource, setDataSource] = useState("api");
   const [feedback, setFeedback] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -71,15 +70,7 @@ function Files() {
         }
 
         setFiles(result.files);
-        setDataSource(result.source);
-        setFeedback(
-          result.message
-            ? {
-                type: "info",
-                text: result.message,
-              }
-            : null
-        );
+        setFeedback(null);
       } catch (error) {
         if (!isMounted) {
           return;
@@ -172,7 +163,7 @@ function Files() {
     setFeedback(null);
 
     try {
-      await Promise.all(fileIds.map((fileId) => deleteFile(fileId, dataSource)));
+      await Promise.all(fileIds.map((fileId) => deleteFile(fileId)));
 
       setFiles((currentFiles) => currentFiles.filter((file) => !fileIds.includes(file.id)));
       setSelectedIds((currentIds) => {
