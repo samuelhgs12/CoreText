@@ -33,17 +33,22 @@ def _build_auth_response(user: User) -> AuthResponse:
 @router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
 def register_user(payload: AuthRegisterRequest, db: Session = Depends(get_db)) -> AuthResponse:
     normalized_email = normalize_email(payload.email)
+    normalized_username = (payload.username or normalized_email).strip()
 
-    existing_user = db.query(User).filter(User.email == normalized_email).first()
+    existing_user = (
+        db.query(User)
+        .filter((User.email == normalized_email) | (User.username == normalized_username))
+        .first()
+    )
     if existing_user is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Já existe uma conta cadastrada com este e-mail.",
+            detail="Já existe uma conta cadastrada com este e-mail ou username.",
         )
 
     password_hash, password_salt = hash_password(payload.password)
     user = User(
-        username=normalized_email,
+        username=normalized_username,
         full_name=payload.full_name.strip(),
         email=normalized_email,
         password_hash=password_hash,
@@ -58,8 +63,24 @@ def register_user(payload: AuthRegisterRequest, db: Session = Depends(get_db)) -
 
 @router.post("/login", response_model=AuthResponse)
 def login_user(payload: AuthLoginRequest, db: Session = Depends(get_db)) -> AuthResponse:
-    normalized_email = normalize_email(payload.email)
-    user = db.query(User).filter(User.email == normalized_email).first()
+    identifier = payload.identifier or payload.email
+
+    if identifier is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Informe e-mail ou username.",
+        )
+
+    normalized_identifier = normalize_email(identifier)
+    user = (
+        db.query(User)
+        .filter(
+            (User.email == normalized_identifier)
+            | (User.username == normalized_identifier)
+            | (User.username == identifier.strip())
+        )
+        .first()
+    )
 
     if user is None or user.password_hash is None or user.password_salt is None:
         raise HTTPException(
@@ -87,7 +108,7 @@ def update_profile(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> User:
-    if payload.full_name is None and payload.email is None:
+    if payload.full_name is None and payload.username is None and payload.email is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Envie ao menos um campo para atualizar o perfil.",
@@ -95,6 +116,21 @@ def update_profile(
 
     if payload.full_name is not None:
         current_user.full_name = payload.full_name.strip()
+
+    if payload.username is not None:
+        normalized_username = payload.username.strip()
+        existing_user = (
+            db.query(User)
+            .filter(User.username == normalized_username, User.id != current_user.id)
+            .first()
+        )
+        if existing_user is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Já existe uma conta cadastrada com este username.",
+            )
+
+        current_user.username = normalized_username
 
     if payload.email is not None:
         normalized_email = normalize_email(payload.email)
@@ -107,10 +143,11 @@ def update_profile(
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Já existe uma conta cadastrada com este e-mail.",
-            )
+        )
 
         current_user.email = normalized_email
-        current_user.username = normalized_email
+        if payload.username is None:
+            current_user.username = normalized_email
 
     db.add(current_user)
     db.commit()
