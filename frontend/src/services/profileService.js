@@ -49,10 +49,24 @@ function normalizeProfile(profile) {
 }
 
 export async function getProfile() {
-  await wait();
-
   const currentUser = getCurrentUser();
   const storedProfile = getStoredProfile();
+
+  try {
+    const user = await apiRequest("/auth/me");
+    const profile = normalizeProfile({
+      ...storedProfile,
+      name: user.full_name || user.username || fallbackProfile.name,
+      username: user.username || fallbackProfile.username,
+      email: user.email || fallbackProfile.email,
+      createdAt: user.created_at,
+    });
+
+    persistProfile(profile);
+    return profile;
+  } catch {
+    await wait();
+  }
 
   return normalizeProfile({
     ...storedProfile,
@@ -82,15 +96,18 @@ export async function updateProfile(profile) {
 
   if (currentUser?.id && /^\d+$/.test(String(currentUser.id))) {
     try {
-      await apiRequest(`/users/${currentUser.id}`, {
+      const updatedUser = await apiRequest("/auth/me", {
         method: "PATCH",
         body: JSON.stringify({
-          name: normalizedProfile.name,
+          full_name: normalizedProfile.name,
           username: normalizedProfile.username,
           email: normalizedProfile.email,
-          avatar_url: normalizedProfile.avatarUrl,
         }),
       });
+      normalizedProfile.name = updatedUser.full_name || updatedUser.username;
+      normalizedProfile.username = updatedUser.username;
+      normalizedProfile.email = updatedUser.email;
+      normalizedProfile.createdAt = updatedUser.created_at;
       source = "api";
     } catch {
       source = "mock";

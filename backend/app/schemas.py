@@ -16,12 +16,14 @@ class UserOut(BaseModel):
 
 class AuthRegisterRequest(BaseModel):
     full_name: str = Field(min_length=1)
+    username: str | None = Field(default=None, min_length=1)
     email: str = Field(min_length=1)
     password: str = Field(min_length=8)
 
 
 class AuthLoginRequest(BaseModel):
-    email: str = Field(min_length=1)
+    email: str | None = Field(default=None, min_length=1)
+    identifier: str | None = Field(default=None, min_length=1)
     password: str = Field(min_length=1)
 
 
@@ -33,6 +35,7 @@ class AuthResponse(BaseModel):
 
 class ProfileUpdateRequest(BaseModel):
     full_name: str | None = Field(default=None, min_length=1)
+    username: str | None = Field(default=None, min_length=1)
     email: str | None = Field(default=None, min_length=1)
 
 

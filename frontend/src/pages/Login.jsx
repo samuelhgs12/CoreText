@@ -117,7 +117,6 @@ function Login() {
                 name="identifier"
                 value={formData.identifier}
                 onChange={handleChange}
-                placeholder="seu@email.com ou kayke"
                 autoComplete="username"
                 disabled={isSubmitting}
                 required
@@ -134,7 +133,6 @@ function Login() {
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
-                placeholder="••••••••"
                 autoComplete="current-password"
                 disabled={isSubmitting}
                 required
@@ -151,15 +149,6 @@ function Login() {
           </label>
 
           {error && <p className="auth-error" role="alert">{error}</p>}
-
-          <div className="auth-row">
-            <label className="check-field">
-              <input type="checkbox" />
-              <span>Lembrar-me</span>
-            </label>
-
-            <a href="#recuperar-senha">Esqueci minha senha</a>
-          </div>
 
           <button type="submit" className="primary-button" disabled={isSubmitting}>
             {isSubmitting ? "Entrando..." : "Entrar"}
