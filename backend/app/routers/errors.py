@@ -18,7 +18,7 @@ from app.services.pdf_extraction import PDFExtractionError
 def summary_generation_http_exception(exc: Exception) -> HTTPException:
     """Traduz uma exceção lançada durante a geração de resumo em um HTTPException."""
     if isinstance(exc, PDFExtractionError):
-        return HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        return HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
     if isinstance(exc, (LLMConfigurationError, LLMAuthenticationError)):
         return HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

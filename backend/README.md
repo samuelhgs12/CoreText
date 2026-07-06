@@ -30,14 +30,23 @@ pytest
 
 ## Autenticação e upload
 
-O backend já expõe o fluxo real de autenticação por token, além de manter
-compatibilidade com o fluxo de API esperado pelo frontend.
+O backend expõe o fluxo real de autenticação por token assinado:
 
 - `POST /auth/register` — cria usuário com `full_name`, `email` e `password` e retorna `access_token`.
 - `POST /auth/login` — autentica com `email` e `password` e retorna `access_token`.
 - `GET /auth/me` — retorna o usuário autenticado a partir do `Authorization: Bearer <token>`.
 - `PATCH /auth/me` — atualiza `full_name` e/ou `email` do usuário autenticado.
-- `POST /files` e rotas protegidas — exigem `Authorization: Bearer <token>`.
+- `POST /files` e demais rotas protegidas — exigem `Authorization: Bearer <token>`.
+
+> ⚠️ **Gap de integração conhecido:** o frontend atual (`frontend/src/services/authService.js`)
+> ainda simula login/registro inteiramente no `localStorage`, sem chamar
+> `/auth/register` ou `/auth/login`, e `frontend/src/services/api.js` ainda envia
+> o header legado `X-User-Id` em vez de `Authorization: Bearer <token>`. Com o
+> backend atual (que só aceita Bearer), chamadas reais de upload/resumo feitas
+> pela UI retornam 401 — hoje isso fica mascarado porque `fileService.js` cai
+> em dados mockados sempre que a chamada à API falha. É preciso atualizar o
+> frontend para chamar os endpoints `/auth/*` acima e enviar o token retornado
+> como `Authorization: Bearer <token>` antes de uma demonstração com dados reais.
 
 Fluxo de teste manual:
 
@@ -62,9 +71,6 @@ curl -X POST http://127.0.0.1:8000/files/1/summary \
   -H "Authorization: Bearer <token>"
 ```
 
-`POST /users` continua disponível apenas como criação legada de usuário usada
-pelos testes existentes enquanto a migração completa não é concluída.
-
 ## Desempenho da geração de resumos
 
 O tempo de geração de cada resumo é registrado no banco (`generation_time_ms`)
@@ -86,11 +92,10 @@ app/
   db.py                      # engine/sessão SQLAlchemy (SQLite: coretext.db)
   models.py                  # modelos ORM: User, PDFFile, Summary, IntegratedSummary
   schemas.py                 # schemas Pydantic de request/response
-  auth.py                    # autenticação por token + compatibilidade legada
+  auth.py                    # autenticação real por token assinado (Authorization: Bearer)
   routers/
     auth.py                  # registro, login e usuário atual
-    users.py                 # criação de usuário (provisório)
-    files.py                 # upload de PDF (provisório)
+    files.py                 # upload/listagem/exclusão de PDF
     summaries.py             # geração de resumo individual (issue 12)
     integrated_summaries.py  # geração de resumo integrado de múltiplos PDFs (issue 13)
     errors.py                # mapeamento de exceções dos serviços de resumo -> HTTPException
