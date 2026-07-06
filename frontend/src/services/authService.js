@@ -1,6 +1,7 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
 const AUTH_TOKEN_KEY = "coretext-token";
 const AUTH_USER_KEY = "coretext-user";
+const PROFILE_STORAGE_PREFIX = "coretext-profile";
 
 function resolveUrl(path) {
   return `${API_BASE_URL}${path}`;
@@ -35,8 +36,16 @@ function normalizeUser(user, avatarUrl = "") {
   };
 }
 
-function getStoredAvatarUrl() {
-  const rawProfile = localStorage.getItem("coretext-profile");
+function getProfileStorageKey(user) {
+  const identifier = user?.id || user?.email || user?.username;
+
+  return identifier
+    ? `${PROFILE_STORAGE_PREFIX}:${encodeURIComponent(identifier)}`
+    : PROFILE_STORAGE_PREFIX;
+}
+
+function getStoredAvatarUrl(user) {
+  const rawProfile = localStorage.getItem(getProfileStorageKey(user));
 
   if (!rawProfile) {
     return "";
@@ -50,7 +59,7 @@ function getStoredAvatarUrl() {
 }
 
 function persistSession({ access_token: token, user }) {
-  const sessionUser = normalizeUser(user, getStoredAvatarUrl());
+  const sessionUser = normalizeUser(user, getStoredAvatarUrl(user));
 
   localStorage.setItem(AUTH_TOKEN_KEY, token);
   localStorage.setItem(AUTH_USER_KEY, JSON.stringify(sessionUser));
@@ -131,7 +140,9 @@ export async function fetchCurrentUser() {
     },
   });
 
-  const user = normalizeUser(await parseResponse(response), getCurrentUser()?.avatarUrl || "");
+  const responseUser = await parseResponse(response);
+  const user = normalizeUser(responseUser, getStoredAvatarUrl(responseUser));
+
   localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
   window.dispatchEvent(new CustomEvent("coretext:user-updated", { detail: user }));
 

@@ -17,8 +17,16 @@ function wait(ms = 250) {
   });
 }
 
-function getStoredProfile() {
-  const rawProfile = localStorage.getItem(PROFILE_STORAGE_KEY);
+function getProfileStorageKey(user) {
+  const identifier = user?.id || user?.email || user?.username;
+
+  return identifier
+    ? `${PROFILE_STORAGE_KEY}:${encodeURIComponent(identifier)}`
+    : PROFILE_STORAGE_KEY;
+}
+
+function getStoredProfile(user) {
+  const rawProfile = localStorage.getItem(getProfileStorageKey(user));
 
   if (!rawProfile) {
     return null;
@@ -31,8 +39,8 @@ function getStoredProfile() {
   }
 }
 
-function persistProfile(profile) {
-  localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));
+function persistProfile(profile, user = profile) {
+  localStorage.setItem(getProfileStorageKey(user), JSON.stringify(profile));
   updateCurrentUser({
     name: profile.name,
     username: profile.username,
@@ -50,19 +58,20 @@ function normalizeProfile(profile) {
 
 export async function getProfile() {
   const currentUser = getCurrentUser();
-  const storedProfile = getStoredProfile();
+  const storedProfile = getStoredProfile(currentUser);
 
   try {
     const user = await apiRequest("/auth/me");
+    const apiStoredProfile = getStoredProfile(user);
     const profile = normalizeProfile({
-      ...storedProfile,
+      ...apiStoredProfile,
       name: user.full_name || user.username || fallbackProfile.name,
       username: user.username || fallbackProfile.username,
       email: user.email || fallbackProfile.email,
       createdAt: user.created_at,
     });
 
-    persistProfile(profile);
+    persistProfile(profile, user);
     return profile;
   } catch {
     await wait();
@@ -114,7 +123,7 @@ export async function updateProfile(profile) {
     }
   }
 
-  persistProfile(normalizedProfile);
+  persistProfile(normalizedProfile, currentUser || normalizedProfile);
 
   return {
     profile: normalizedProfile,
