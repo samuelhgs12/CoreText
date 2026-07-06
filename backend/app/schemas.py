@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -12,7 +13,31 @@ class UserOut(BaseModel):
 
     id: int
     username: str
+    full_name: str | None = None
+    email: str | None = None
     created_at: datetime
+
+
+class AuthRegisterRequest(BaseModel):
+    full_name: str = Field(min_length=1)
+    email: str = Field(min_length=1)
+    password: str = Field(min_length=8)
+
+
+class AuthLoginRequest(BaseModel):
+    email: str = Field(min_length=1)
+    password: str = Field(min_length=1)
+
+
+class AuthResponse(BaseModel):
+    token_type: Literal["bearer"] = "bearer"
+    access_token: str
+    user: UserOut
+
+
+class ProfileUpdateRequest(BaseModel):
+    full_name: str | None = Field(default=None, min_length=1)
+    email: str | None = Field(default=None, min_length=1)
 
 
 class FileOut(BaseModel):

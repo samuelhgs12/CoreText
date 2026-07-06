@@ -13,6 +13,9 @@ from app.routers import files as files_router
 from app.services import summarization as summarization_module
 
 
+AUTH_TOKENS: dict[int, str] = {}
+
+
 @pytest.fixture
 def valid_pdf_with_text(tmp_path) -> Path:
     """PDF pequeno e válido, com texto extraível em duas páginas."""
@@ -90,6 +93,7 @@ def test_session_factory(tmp_path):
 
 @pytest.fixture()
 def client(test_session_factory) -> TestClient:
+    AUTH_TOKENS.clear()
     return TestClient(app)
 
 
@@ -107,9 +111,20 @@ def _isolated_upload_dir(monkeypatch, tmp_path):
 
 
 def create_user(client: TestClient, username: str) -> int:
-    resp = client.post("/users", json={"username": username})
+    email = f"{username}@example.com"
+    resp = client.post(
+        "/auth/register",
+        json={"full_name": username.title(), "email": email, "password": "12345678"},
+    )
     assert resp.status_code == 201, resp.text
-    return resp.json()["id"]
+    body = resp.json()
+    AUTH_TOKENS[body["user"]["id"]] = body["access_token"]
+    return body["user"]["id"]
+
+
+def auth_header(user_id: int) -> dict[str, str]:
+    token = AUTH_TOKENS[user_id]
+    return {"Authorization": f"Bearer {token}"}
 
 
 def make_pdf_bytes(tmp_path: Path, filename: str, with_text: bool) -> bytes:
@@ -128,6 +143,6 @@ def upload_pdf(
     pdf_bytes = make_pdf_bytes(tmp_path, filename, with_text)
     return client.post(
         "/files",
-        headers={"X-User-Id": str(user_id)},
+        headers=auth_header(user_id),
         files={"file": (filename, pdf_bytes, "application/pdf")},
     )

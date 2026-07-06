@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 
 from app.models import Summary
-from tests.conftest import create_user, upload_pdf
+from tests.conftest import auth_header, create_user, upload_pdf
 
 
 def test_generate_individual_summary_success(client: TestClient, tmp_path):
@@ -10,7 +10,7 @@ def test_generate_individual_summary_success(client: TestClient, tmp_path):
     assert upload_resp.status_code == 201, upload_resp.text
     file_id = upload_resp.json()["id"]
 
-    resp = client.post(f"/files/{file_id}/summary", headers={"X-User-Id": str(user_id)})
+    resp = client.post(f"/files/{file_id}/summary", headers=auth_header(user_id))
 
     assert resp.status_code == 201, resp.text
     body = resp.json()
@@ -24,7 +24,7 @@ def test_summary_is_persisted_in_database(client: TestClient, test_session_facto
     upload_resp = upload_pdf(client, user_id, tmp_path, "doc.pdf")
     file_id = upload_resp.json()["id"]
 
-    resp = client.post(f"/files/{file_id}/summary", headers={"X-User-Id": str(user_id)})
+    resp = client.post(f"/files/{file_id}/summary", headers=auth_header(user_id))
     summary_id = resp.json()["id"]
 
     session = test_session_factory()
@@ -44,7 +44,7 @@ def test_cannot_summarize_file_of_another_user(client: TestClient, tmp_path):
     upload_resp = upload_pdf(client, owner_id, tmp_path, "doc.pdf")
     file_id = upload_resp.json()["id"]
 
-    resp = client.post(f"/files/{file_id}/summary", headers={"X-User-Id": str(other_id)})
+    resp = client.post(f"/files/{file_id}/summary", headers=auth_header(other_id))
 
     assert resp.status_code == 403
 
@@ -52,7 +52,7 @@ def test_cannot_summarize_file_of_another_user(client: TestClient, tmp_path):
 def test_summary_of_nonexistent_file_returns_404(client: TestClient):
     user_id = create_user(client, "alice")
 
-    resp = client.post("/files/9999/summary", headers={"X-User-Id": str(user_id)})
+    resp = client.post("/files/9999/summary", headers=auth_header(user_id))
 
     assert resp.status_code == 404
 
@@ -62,6 +62,6 @@ def test_summary_returns_422_when_pdf_has_no_extractable_text(client: TestClient
     upload_resp = upload_pdf(client, user_id, tmp_path, "blank.pdf", with_text=False)
     file_id = upload_resp.json()["id"]
 
-    resp = client.post(f"/files/{file_id}/summary", headers={"X-User-Id": str(user_id)})
+    resp = client.post(f"/files/{file_id}/summary", headers=auth_header(user_id))
 
     assert resp.status_code == 422
