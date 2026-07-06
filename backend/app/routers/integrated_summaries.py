@@ -5,14 +5,69 @@ from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
 from app.db import get_db
-from app.models import IntegratedSummary, PDFFile, User
+from app.models import IntegratedSummary, PDFFile, Summary, User, integrated_summary_files
 from app.routers.errors import summary_generation_http_exception
-from app.schemas import IntegratedSummaryOut, IntegratedSummaryRequest
+from app.schemas import IntegratedSummaryOut, IntegratedSummaryRequest, SummaryHistoryItemOut
 from app.services.llm_client import LLMError
 from app.services.pdf_extraction import PDFExtractionError
 from app.services.summarization import generate_integrated_summary
 
 router = APIRouter(prefix="/summaries", tags=["summaries"])
+
+
+@router.get("", response_model=list[SummaryHistoryItemOut])
+def list_summaries(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    individual_summaries = (
+        db.query(Summary)
+        .join(PDFFile, Summary.file_id == PDFFile.id)
+        .filter(PDFFile.owner_id == current_user.id)
+        .order_by(Summary.created_at.desc(), Summary.id.desc())
+        .all()
+    )
+
+    integrated_summaries = (
+        db.query(IntegratedSummary)
+        .join(
+            integrated_summary_files,
+            IntegratedSummary.id == integrated_summary_files.c.integrated_summary_id,
+        )
+        .join(PDFFile, integrated_summary_files.c.file_id == PDFFile.id)
+        .filter(PDFFile.owner_id == current_user.id)
+        .distinct()
+        .order_by(IntegratedSummary.created_at.desc(), IntegratedSummary.id.desc())
+        .all()
+    )
+
+    history_items = [
+        {
+            "id": f"individual-{summary.id}",
+            "type": "individual",
+            "title": summary.file.filename,
+            "files": [summary.file.filename],
+            "content": summary.content,
+            "generation_time_ms": summary.generation_time_ms,
+            "created_at": summary.created_at,
+        }
+        for summary in individual_summaries
+    ]
+
+    history_items.extend(
+        {
+            "id": f"integrated-{summary.id}",
+            "type": "integrated",
+            "title": f"Resumo integrado de {len(summary.files)} arquivos",
+            "files": [file.filename for file in summary.files],
+            "content": summary.content,
+            "generation_time_ms": summary.generation_time_ms,
+            "created_at": summary.created_at,
+        }
+        for summary in integrated_summaries
+    )
+
+    return sorted(history_items, key=lambda item: item["created_at"], reverse=True)
 
 
 @router.post(

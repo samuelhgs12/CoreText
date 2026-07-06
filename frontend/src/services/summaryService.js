@@ -1,10 +1,13 @@
 import { apiRequest } from "./api";
 
 function normalizeIndividualSummary(summary, files) {
+  const fileName = files[0] || `Arquivo #${summary.file_id}`;
+
   return {
-    id: summary.id,
+    id: `individual-${summary.id}`,
     type: "individual",
-    fileName: files[0] || `Arquivo #${summary.file_id}`,
+    fileName,
+    title: fileName,
     files,
     content: summary.content,
     generatedAt: summary.created_at,
@@ -15,15 +18,36 @@ function normalizeIndividualSummary(summary, files) {
 
 function normalizeIntegratedSummary(summary, files) {
   return {
-    id: summary.id,
+    id: `integrated-${summary.id}`,
     type: "integrated",
     fileName: "",
+    title: `Resumo integrado de ${files.length} arquivos`,
     files,
     content: summary.content,
     generatedAt: summary.created_at,
     generationTimeMs: summary.generation_time_ms,
     source: "api",
   };
+}
+
+function normalizeHistorySummary(summary) {
+  return {
+    id: summary.id,
+    type: summary.type,
+    fileName: summary.type === "individual" ? summary.title : "",
+    title: summary.title,
+    files: summary.files,
+    content: summary.content,
+    generatedAt: summary.created_at,
+    generationTimeMs: summary.generation_time_ms,
+    source: "api",
+  };
+}
+
+export async function listSummaries() {
+  const summaries = await apiRequest("/summaries");
+
+  return summaries.map(normalizeHistorySummary);
 }
 
 export async function generateSummary({ mode = "individual", fileIds = [], fileNames = [] }) {

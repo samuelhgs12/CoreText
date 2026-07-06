@@ -262,7 +262,7 @@ function Files() {
             onClick={handleGenerateSummary}
           >
             <Icon name="fileText" size={18} />
-            Gerar resumo
+            {selectedCount > 1 ? "Gerar resumo integrado" : "Gerar resumo"}
           </button>
           <button
             type="button"
