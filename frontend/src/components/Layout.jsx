@@ -67,9 +67,6 @@ function Layout() {
         <header className="topbar">
           <div className="topbar-actions">
             <ThemeToggle />
-            <button type="button" className="topbar-icon-button" aria-label="Notificações">
-              <Icon name="bell" size={22} />
-            </button>
             <span className="avatar-small">K</span>
             <strong>{currentUser?.name || "Kayke"}</strong>
             <Icon name="chevronDown" size={18} />

@@ -21,7 +21,6 @@ function Profile() {
 				<article className="card-surface">
 					<h2>Preferências</h2>
 					<ul className="simple-list">
-						<li>Notificações ativadas</li>
 						<li>Idioma: Português</li>
 						<li>Área padrão: Dashboard</li>
 					</ul>
