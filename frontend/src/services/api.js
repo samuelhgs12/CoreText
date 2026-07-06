@@ -17,9 +17,12 @@ function resolveUrl(path) {
 }
 
 export async function apiRequest(path, options = {}) {
+  const isFormData = options.body instanceof FormData;
+
   const response = await fetch(resolveUrl(path), {
     ...options,
     headers: {
+      ...(options.body && !isFormData ? { "Content-Type": "application/json" } : {}),
       "X-User-Id": getPlaceholderUserId(),
       ...options.headers,
     },

@@ -7,7 +7,20 @@ const icons = {
       <path d="M9 12h6" />
     </>
   ),
-  chevronDown: <path d="m6 9 6 6 6-6" />,
+  calendar: (
+    <>
+      <path d="M8 2v4" />
+      <path d="M16 2v4" />
+      <rect x="3" y="4" width="18" height="18" rx="2" />
+      <path d="M3 10h18" />
+    </>
+  ),
+  camera: (
+    <>
+      <path d="M14.5 4 16 7h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h3l1.5-3Z" />
+      <circle cx="12" cy="13" r="3" />
+    </>
+  ),
   chevronRight: <path d="m9 6 6 6-6 6" />,
   cloudUpload: (
     <>

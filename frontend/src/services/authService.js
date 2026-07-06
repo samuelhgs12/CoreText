@@ -6,6 +6,7 @@ const demoUsers = [
   {
     id: "demo-user",
     name: "Kayke",
+    username: "kayke",
     email: "kayke@example.com",
     password: "12345678",
   },
@@ -60,6 +61,7 @@ function persistSession(user) {
   const sessionUser = {
     id: user.id,
     name: user.name,
+    username: user.username,
     email: user.email,
   };
 
@@ -73,51 +75,64 @@ function persistSession(user) {
   };
 }
 
-export async function login({ email, password }) {
+export async function login({ identifier, email, password }) {
   await wait();
 
-  const normalizedEmail = email.trim().toLowerCase();
+  const normalizedIdentifier = (identifier || email || "").trim().toLowerCase();
 
-  if (!normalizedEmail || !password) {
-    throw createAuthError("Informe e-mail e senha para continuar.");
+  if (!normalizedIdentifier || !password) {
+    throw createAuthError("Informe e-mail ou username e senha para continuar.");
   }
 
   const user = getStoredUsers().find(
-    (candidate) => candidate.email.toLowerCase() === normalizedEmail
+    (candidate) =>
+      candidate.email.toLowerCase() === normalizedIdentifier ||
+      candidate.username?.toLowerCase() === normalizedIdentifier
   );
 
   if (!user || user.password !== password) {
-    throw createAuthError("E-mail ou senha inválidos. Verifique os dados e tente novamente.");
+    throw createAuthError("Credenciais inválidas. Verifique os dados e tente novamente.");
   }
 
   return persistSession(user);
 }
 
-export async function register({ name, email, password }) {
+export async function register({ name, username, email, password }) {
   await wait();
 
   const normalizedName = name.trim();
+  const normalizedUsername = username.trim().toLowerCase();
   const normalizedEmail = email.trim().toLowerCase();
 
-  if (!normalizedName || !normalizedEmail || !password) {
-    throw createAuthError("Preencha nome, e-mail e senha para criar sua conta.");
+  if (!normalizedName || !normalizedUsername || !normalizedEmail || !password) {
+    throw createAuthError("Preencha nome, username, e-mail e senha para criar sua conta.");
   }
 
   if (password.length < 8) {
     throw createAuthError("A senha deve ter pelo menos 8 caracteres.");
   }
 
-  const alreadyExists = getStoredUsers().some(
+  const users = getStoredUsers();
+  const emailAlreadyExists = users.some(
     (user) => user.email.toLowerCase() === normalizedEmail
   );
 
-  if (alreadyExists) {
+  if (emailAlreadyExists) {
     throw createAuthError("Já existe uma conta cadastrada com este e-mail.");
+  }
+
+  const usernameAlreadyExists = users.some(
+    (user) => user.username?.toLowerCase() === normalizedUsername
+  );
+
+  if (usernameAlreadyExists) {
+    throw createAuthError("Já existe uma conta cadastrada com este username.");
   }
 
   const user = {
     id: createMockId(),
     name: normalizedName,
+    username: normalizedUsername,
     email: normalizedEmail,
     password,
   };
@@ -149,6 +164,29 @@ export function getCurrentUser() {
   } catch {
     return null;
   }
+}
+
+export function updateCurrentUser(updates) {
+  const currentUser = getCurrentUser();
+
+  if (!currentUser) {
+    return null;
+  }
+
+  const nextUser = {
+    ...currentUser,
+    ...updates,
+  };
+
+  localStorage.setItem(AUTH_USER_KEY, JSON.stringify(nextUser));
+
+  if (nextUser.email) {
+    localStorage.setItem("coretext-user-email", nextUser.email);
+  }
+
+  window.dispatchEvent(new CustomEvent("coretext:user-updated", { detail: nextUser }));
+
+  return nextUser;
 }
 
 export function isAuthenticated() {

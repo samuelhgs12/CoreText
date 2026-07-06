@@ -8,6 +8,7 @@ function Register() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: "",
+    username: "",
     email: "",
     password: "",
   });
@@ -123,6 +124,20 @@ function Register() {
               onChange={handleChange}
               placeholder="Digite seu nome completo"
               autoComplete="name"
+              disabled={isSubmitting}
+              required
+            />
+          </label>
+
+          <label className="field">
+            <span>Username</span>
+            <input
+              type="text"
+              name="username"
+              value={formData.username}
+              onChange={handleChange}
+              placeholder="Escolha seu username"
+              autoComplete="username"
               disabled={isSubmitting}
               required
             />
