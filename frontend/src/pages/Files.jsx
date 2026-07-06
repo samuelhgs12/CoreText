@@ -154,6 +154,7 @@ function Files() {
       state: {
         selectedFileIds: Array.from(selectedIds),
         selectedFiles: selectedFiles.map((file) => file.name),
+        summaryMode: selectedCount > 1 ? "integrated" : "individual",
       },
     });
   }
