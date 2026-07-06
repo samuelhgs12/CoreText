@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import ReactMarkdown from "react-markdown";
 import { Link, useLocation } from "react-router-dom";
 import Icon from "../components/Icon";
 import { deleteSummary, generateSummary, listSummaries } from "../services/summaryService";
@@ -13,29 +14,23 @@ function formatDate(date) {
   }).format(new Date(date));
 }
 
-function formatDuration(milliseconds) {
-  if (!milliseconds && milliseconds !== 0) {
-    return "Não informado";
-  }
-
-  if (milliseconds < 1000) {
-    return `${Math.round(milliseconds)} ms`;
-  }
-
-  return `${(milliseconds / 1000).toLocaleString("pt-BR", {
-    maximumFractionDigits: 1,
-  })} s`;
-}
-
-function SummaryDisplay({ summary }) {
+function SummaryDisplay({ summary, content, isGenerating = false, isTyping = false }) {
   const isIntegrated = summary.type === "integrated";
 
   return (
     <article className="card-surface summary-result-card">
       <div className="summary-result-header">
         <div>
-          <span className={`status-badge ${isIntegrated ? "progress" : "success"}`}>
-            {isIntegrated ? "Resumo integrado" : "Resumo individual"}
+          <span
+            className={`status-badge ${
+              isGenerating || isIntegrated ? "progress" : "success"
+            }`}
+          >
+            {isGenerating
+              ? "Gerando resumo"
+              : isIntegrated
+                ? "Resumo integrado"
+                : "Resumo individual"}
           </span>
           <h2>{isIntegrated ? "Resumo integrado dos arquivos" : summary.fileName}</h2>
         </div>
@@ -50,14 +45,6 @@ function SummaryDisplay({ summary }) {
         <div>
           <span>Gerado em</span>
           <strong>{formatDate(summary.generatedAt)}</strong>
-        </div>
-        <div>
-          <span>Tempo de geração</span>
-          <strong>{formatDuration(summary.generationTimeMs)}</strong>
-        </div>
-        <div>
-          <span>Origem</span>
-          <strong>Backend</strong>
         </div>
       </div>
 
@@ -75,10 +62,16 @@ function SummaryDisplay({ summary }) {
 
       <section className="summary-content-section">
         <h3>Conteúdo do resumo</h3>
-        <div className="summary-content">
-          {summary.content.split("\n").map((line, index) => (
-            <p key={`${line}-${index}`}>{line || "\u00A0"}</p>
-          ))}
+        <div
+          className={`summary-content ${
+            isGenerating || isTyping ? "summary-content-typing" : ""
+          }`}
+        >
+          {isGenerating && !content ? (
+            <p className="muted-text">Preparando resumo...</p>
+          ) : (
+            <ReactMarkdown>{content}</ReactMarkdown>
+          )}
         </div>
       </section>
     </article>
@@ -137,15 +130,14 @@ function SummaryHistory({
                   </span>
                   <div>
                     <strong>{summary.title || summary.fileName}</strong>
-                    <p className="muted-text">
-                      {summary.files.length} arquivo{summary.files.length === 1 ? "" : "s"} •{" "}
-                      {formatDate(summary.generatedAt)}
-                    </p>
-                  </div>
-                  <Icon name="chevronRight" size={18} />
-                </button>
+                  <p className="muted-text">
+                    {summary.files.length} arquivo{summary.files.length === 1 ? "" : "s"} •{" "}
+                    {formatDate(summary.generatedAt)}
+                  </p>
+                </div>
+              </button>
 
-                <button
+              <button
                   type="button"
                   className="icon-button danger-icon-button"
                   disabled={deletingSummaryId === summary.id}
@@ -171,6 +163,8 @@ function Summary() {
   const mode = state.summaryMode || (fileIds.length > 1 ? "integrated" : "individual");
   const [summary, setSummary] = useState(null);
   const [summaryHistory, setSummaryHistory] = useState([]);
+  const [animatedContent, setAnimatedContent] = useState("");
+  const [typingSummaryId, setTypingSummaryId] = useState(null);
   const [error, setError] = useState("");
   const [historyError, setHistoryError] = useState("");
   const [isLoading, setIsLoading] = useState(Boolean(fileIds.length));
@@ -217,6 +211,29 @@ function Summary() {
   }, [fileIds.length]);
 
   useEffect(() => {
+    if (!summary || typingSummaryId !== summary.id) {
+      return undefined;
+    }
+
+    const fullContent = summary.content || "";
+    let nextIndex = 0;
+
+    const typingTimer = window.setInterval(() => {
+      nextIndex += 1;
+      setAnimatedContent(fullContent.slice(0, nextIndex));
+
+      if (nextIndex >= fullContent.length) {
+        window.clearInterval(typingTimer);
+        setTypingSummaryId(null);
+      }
+    }, 6);
+
+    return () => {
+      window.clearInterval(typingTimer);
+    };
+  }, [summary, typingSummaryId]);
+
+  useEffect(() => {
     let isMounted = true;
 
     async function loadSummary() {
@@ -227,6 +244,22 @@ function Summary() {
 
       setIsLoading(true);
       setError("");
+      setTypingSummaryId(null);
+      setAnimatedContent("");
+      setSummary({
+        id: "generating-summary",
+        type: mode === "integrated" || fileIds.length > 1 ? "integrated" : "individual",
+        fileName: fileNames[0] || "Resumo em geração",
+        title:
+          mode === "integrated" || fileIds.length > 1
+            ? `Resumo integrado de ${fileIds.length} arquivos`
+            : fileNames[0] || "Resumo em geração",
+        files: fileNames.length ? fileNames : fileIds.map((fileId) => `Arquivo #${fileId}`),
+        content: "",
+        generatedAt: new Date().toISOString(),
+        generationTimeMs: null,
+        source: "api",
+      });
 
       try {
         const generatedSummary = await generateSummary({
@@ -240,6 +273,8 @@ function Summary() {
         }
 
         setSummary(generatedSummary);
+        setAnimatedContent("");
+        setTypingSummaryId(generatedSummary.id);
         setSummaryHistory((currentSummaries) => [
           generatedSummary,
           ...currentSummaries.filter((item) => item.id !== generatedSummary.id),
@@ -249,6 +284,7 @@ function Summary() {
           return;
         }
 
+        setSummary(null);
         setError(summaryError.message || "Não foi possível gerar o resumo.");
       } finally {
         if (isMounted) {
@@ -309,20 +345,12 @@ function Summary() {
         error={historyError}
         onSelectSummary={(selectedSummary) => {
           setSummary(selectedSummary);
+          setTypingSummaryId(null);
+          setAnimatedContent("");
           setError("");
         }}
         onDeleteSummary={handleDeleteSummary}
       />
-
-      {isLoading && (
-        <article className="card-surface summary-state-card">
-          <span className="loading-spinner" aria-hidden="true" />
-          <h2>Gerando resumo...</h2>
-          <p className="muted-text">
-            Estamos processando os arquivos selecionados. Isso pode levar alguns segundos.
-          </p>
-        </article>
-      )}
 
       {!isLoading && error && (
         <article className="card-surface summary-state-card error">
@@ -348,7 +376,14 @@ function Summary() {
         </article>
       )}
 
-      {!isLoading && !error && summary && <SummaryDisplay summary={summary} />}
+      {!error && summary && (
+        <SummaryDisplay
+          summary={summary}
+          content={typingSummaryId === summary.id ? animatedContent : summary.content}
+          isGenerating={isLoading}
+          isTyping={typingSummaryId === summary.id}
+        />
+      )}
     </section>
   );
 }
