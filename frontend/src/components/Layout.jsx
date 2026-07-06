@@ -90,7 +90,7 @@ function Layout() {
                 userInitial
               )}
             </span>
-            <strong>{currentUser?.name || "Kayke"}</strong>
+            <strong>{currentUser?.name || "Usuário"}</strong>
           </div>
         </header>
 

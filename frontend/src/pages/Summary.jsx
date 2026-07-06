@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import Icon from "../components/Icon";
-import { generateSummary } from "../services/summaryService";
+import { deleteSummary, generateSummary, listSummaries } from "../services/summaryService";
 
 function formatDate(date) {
   return new Intl.DateTimeFormat("pt-BR", {
@@ -57,7 +57,7 @@ function SummaryDisplay({ summary }) {
         </div>
         <div>
           <span>Origem</span>
-          <strong>{summary.source === "api" ? "Backend" : "Mock demonstrativo"}</strong>
+          <strong>Backend</strong>
         </div>
       </div>
 
@@ -85,6 +85,84 @@ function SummaryDisplay({ summary }) {
   );
 }
 
+function SummaryHistory({
+  summaries,
+  selectedSummaryId,
+  deletingSummaryId,
+  isLoading,
+  error,
+  onSelectSummary,
+  onDeleteSummary,
+}) {
+  return (
+    <article className="card-surface summary-history-card">
+      <div className="section-header">
+        <h2>Resumos gerados</h2>
+        <Link to="/arquivos" className="text-button">
+          Gerar novo
+          <Icon name="chevronRight" size={18} />
+        </Link>
+      </div>
+
+      {isLoading && <div className="empty-state">Carregando histórico...</div>}
+
+      {!isLoading && error && (
+        <p className="feedback-message error" role="status">
+          {error}
+        </p>
+      )}
+
+      {!isLoading && !error && summaries.length === 0 && (
+        <div className="empty-state">
+          <Icon name="fileText" size={30} />
+          <strong>Nenhum resumo gerado ainda</strong>
+          <p className="muted-text">Selecione PDFs na tela de arquivos para gerar resumos.</p>
+        </div>
+      )}
+
+      {!isLoading && !error && summaries.length > 0 && (
+        <div className="summary-history-list">
+          {summaries.map((summary) => {
+            const isSelected = summary.id === selectedSummaryId;
+            const isIntegrated = summary.type === "integrated";
+
+            return (
+              <div
+                className={`summary-history-item ${isSelected ? "active" : ""}`}
+                key={summary.id}
+              >
+                <button type="button" onClick={() => onSelectSummary(summary)}>
+                  <span className={`status-badge ${isIntegrated ? "progress" : "success"}`}>
+                    {isIntegrated ? "Integrado" : "Individual"}
+                  </span>
+                  <div>
+                    <strong>{summary.title || summary.fileName}</strong>
+                    <p className="muted-text">
+                      {summary.files.length} arquivo{summary.files.length === 1 ? "" : "s"} •{" "}
+                      {formatDate(summary.generatedAt)}
+                    </p>
+                  </div>
+                  <Icon name="chevronRight" size={18} />
+                </button>
+
+                <button
+                  type="button"
+                  className="icon-button danger-icon-button"
+                  disabled={deletingSummaryId === summary.id}
+                  onClick={() => onDeleteSummary(summary)}
+                  aria-label={`Excluir ${summary.title || summary.fileName}`}
+                >
+                  <Icon name="trash" size={18} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </article>
+  );
+}
+
 function Summary() {
   const location = useLocation();
   const state = location.state || {};
@@ -92,8 +170,51 @@ function Summary() {
   const fileNames = useMemo(() => state.selectedFiles || [], [state.selectedFiles]);
   const mode = state.summaryMode || (fileIds.length > 1 ? "integrated" : "individual");
   const [summary, setSummary] = useState(null);
+  const [summaryHistory, setSummaryHistory] = useState([]);
   const [error, setError] = useState("");
+  const [historyError, setHistoryError] = useState("");
   const [isLoading, setIsLoading] = useState(Boolean(fileIds.length));
+  const [isHistoryLoading, setIsHistoryLoading] = useState(true);
+  const [deletingSummaryId, setDeletingSummaryId] = useState(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadHistory() {
+      setIsHistoryLoading(true);
+      setHistoryError("");
+
+      try {
+        const summaries = await listSummaries();
+
+        if (!isMounted) {
+          return;
+        }
+
+        setSummaryHistory(summaries);
+
+        if (!fileIds.length) {
+          setSummary((currentSummary) => currentSummary || summaries[0] || null);
+        }
+      } catch (historyError) {
+        if (!isMounted) {
+          return;
+        }
+
+        setHistoryError(historyError.message || "Não foi possível carregar seus resumos.");
+      } finally {
+        if (isMounted) {
+          setIsHistoryLoading(false);
+        }
+      }
+    }
+
+    loadHistory();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [fileIds.length]);
 
   useEffect(() => {
     let isMounted = true;
@@ -119,6 +240,10 @@ function Summary() {
         }
 
         setSummary(generatedSummary);
+        setSummaryHistory((currentSummaries) => [
+          generatedSummary,
+          ...currentSummaries.filter((item) => item.id !== generatedSummary.id),
+        ]);
       } catch (summaryError) {
         if (!isMounted) {
           return;
@@ -139,6 +264,32 @@ function Summary() {
     };
   }, [fileIds, fileNames, mode]);
 
+  async function handleDeleteSummary(summaryToDelete) {
+    setDeletingSummaryId(summaryToDelete.id);
+    setHistoryError("");
+    setError("");
+
+    try {
+      await deleteSummary(summaryToDelete.id);
+
+      setSummaryHistory((currentSummaries) => {
+        const nextSummaries = currentSummaries.filter(
+          (item) => item.id !== summaryToDelete.id
+        );
+
+        if (summary?.id === summaryToDelete.id) {
+          setSummary(nextSummaries[0] || null);
+        }
+
+        return nextSummaries;
+      });
+    } catch (deleteError) {
+      setHistoryError(deleteError.message || "Não foi possível excluir o resumo.");
+    } finally {
+      setDeletingSummaryId(null);
+    }
+  }
+
   return (
     <section className="page-stack summary-page">
       <div className="page-heading">
@@ -149,6 +300,19 @@ function Summary() {
           </p>
         </div>
       </div>
+
+      <SummaryHistory
+        summaries={summaryHistory}
+        selectedSummaryId={summary?.id}
+        deletingSummaryId={deletingSummaryId}
+        isLoading={isHistoryLoading}
+        error={historyError}
+        onSelectSummary={(selectedSummary) => {
+          setSummary(selectedSummary);
+          setError("");
+        }}
+        onDeleteSummary={handleDeleteSummary}
+      />
 
       {isLoading && (
         <article className="card-surface summary-state-card">
@@ -171,7 +335,7 @@ function Summary() {
         </article>
       )}
 
-      {!isLoading && !error && !summary && (
+      {!isLoading && !isHistoryLoading && !error && !summary && (
         <article className="card-surface summary-state-card">
           <Icon name="fileText" size={34} />
           <h2>Nenhum arquivo selecionado</h2>

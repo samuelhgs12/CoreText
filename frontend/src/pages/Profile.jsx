@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import Icon from "../components/Icon";
-import { getProfile, updateProfile } from "../services/profileService";
+import { getDashboard } from "../services/dashboardService";
+import { getProfile, updateProfileAvatar } from "../services/profileService";
 
 const initialForm = {
   name: "",
@@ -21,6 +22,10 @@ function getInitials(name) {
 }
 
 function formatDate(date) {
+  if (!date) {
+    return "Data não disponível";
+  }
+
   return new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",
     month: "long",
@@ -32,8 +37,10 @@ function Profile() {
   const fileInputRef = useRef(null);
   const [profile, setProfile] = useState(null);
   const [formData, setFormData] = useState(initialForm);
+  const [activityItems, setActivityItems] = useState([]);
   const [feedback, setFeedback] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isActivityLoading, setIsActivityLoading] = useState(true);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
   useEffect(() => {
@@ -72,7 +79,37 @@ function Profile() {
       }
     }
 
+    async function loadActivity() {
+      setIsActivityLoading(true);
+
+      try {
+        const dashboard = await getDashboard();
+
+        if (!isMounted) {
+          return;
+        }
+
+        const wantedLabels = ["PDFs enviados", "Resumos gerados", "Resumos integrados"];
+        setActivityItems(
+          wantedLabels
+            .map((label) => dashboard.metrics.find((metric) => metric.label === label))
+            .filter(Boolean)
+        );
+      } catch {
+        if (!isMounted) {
+          return;
+        }
+
+        setActivityItems([]);
+      } finally {
+        if (isMounted) {
+          setIsActivityLoading(false);
+        }
+      }
+    }
+
     loadProfile();
+    loadActivity();
 
     return () => {
       isMounted = false;
@@ -113,7 +150,7 @@ function Profile() {
       setFeedback(null);
 
       try {
-        const result = await updateProfile(nextProfile);
+        const result = await updateProfileAvatar(nextProfile.avatarUrl);
 
         setProfile(result.profile);
         setFormData({
@@ -123,11 +160,8 @@ function Profile() {
           avatarUrl: result.profile.avatarUrl,
         });
         setFeedback({
-          type: result.source === "api" ? "success" : "info",
-          text:
-            result.source === "api"
-              ? "Foto de perfil atualizada com sucesso."
-              : "Foto de perfil salva localmente. A atualização via backend será usada quando a rota estiver disponível.",
+          type: "success",
+          text: result.message,
         });
       } catch (error) {
         setFeedback({
@@ -200,17 +234,17 @@ function Profile() {
             <div className="profile-readonly-list">
               <div>
                 <span>Nome completo</span>
-                <strong>{formData.name || "Kayke Silva"}</strong>
+                <strong>{formData.name || "Nome não informado"}</strong>
               </div>
 
               <div>
                 <span>Username</span>
-                <strong>@{formData.username || "kayke"}</strong>
+                <strong>{formData.username ? `@${formData.username}` : "Username não informado"}</strong>
               </div>
 
               <div>
                 <span>E-mail</span>
-                <strong>{formData.email || "kayke@example.com"}</strong>
+                <strong>{formData.email || "E-mail não informado"}</strong>
               </div>
             </div>
           </div>
@@ -227,7 +261,7 @@ function Profile() {
                 </span>
                 <div>
                   <p className="muted-text">Data de criação</p>
-                  <strong>{formatDate(profile?.createdAt || "2024-04-12T12:00:00Z")}</strong>
+                  <strong>{formatDate(profile?.createdAt)}</strong>
                 </div>
               </div>
 
@@ -237,7 +271,7 @@ function Profile() {
                 </span>
                 <div>
                   <p className="muted-text">Username</p>
-                  <strong>@{formData.username || "kayke"}</strong>
+                  <strong>{formData.username ? `@${formData.username}` : "Username não informado"}</strong>
                 </div>
               </div>
 
@@ -247,7 +281,7 @@ function Profile() {
                 </span>
                 <div>
                   <p className="muted-text">E-mail cadastrado</p>
-                  <strong>{formData.email || "kayke@example.com"}</strong>
+                  <strong>{formData.email || "E-mail não informado"}</strong>
                 </div>
               </div>
             </div>
@@ -255,32 +289,34 @@ function Profile() {
 
           <article className="card-surface profile-info-card">
             <h2>Resumo de atividade</h2>
-            <p className="muted-text">Seus últimos 30 dias na plataforma.</p>
+            <p className="muted-text">Dados sincronizados com o dashboard.</p>
 
             <div className="activity-list">
-              <div>
-                <span className="activity-icon blue">
-                  <Icon name="fileText" size={18} />
-                </span>
-                <p>PDFs enviados</p>
-                <strong>42</strong>
-              </div>
+              {isActivityLoading &&
+                ["PDFs enviados", "Resumos gerados", "Resumos integrados"].map((label) => (
+                  <div key={label}>
+                    <span className="activity-icon blue">
+                      <Icon name="refresh" size={18} />
+                    </span>
+                    <p>{label}</p>
+                    <strong>...</strong>
+                  </div>
+                ))}
 
-              <div>
-                <span className="activity-icon green">
-                  <Icon name="sparkles" size={18} />
-                </span>
-                <p>Resumos gerados</p>
-                <strong>31</strong>
-              </div>
+              {!isActivityLoading &&
+                activityItems.map((item) => (
+                  <div key={item.label}>
+                    <span className={`activity-icon ${item.variant}`}>
+                      <Icon name={item.icon} size={18} />
+                    </span>
+                    <p>{item.label}</p>
+                    <strong>{item.value}</strong>
+                  </div>
+                ))}
 
-              <div>
-                <span className="activity-icon purple">
-                  <Icon name="archive" size={18} />
-                </span>
-                <p>Arquivos recentes</p>
-                <strong>12</strong>
-              </div>
+              {!isActivityLoading && activityItems.length === 0 && (
+                <p className="muted-text">Não foi possível carregar a atividade agora.</p>
+              )}
             </div>
 
             <Link to="/dashboard" className="ghost-button profile-dashboard-link">

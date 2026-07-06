@@ -74,3 +74,36 @@ class IntegratedSummaryOut(BaseModel):
     content: str
     generation_time_ms: float
     created_at: datetime
+
+
+class SummaryHistoryItemOut(BaseModel):
+    id: str
+    type: Literal["individual", "integrated"]
+    title: str
+    files: list[str]
+    content: str
+    generation_time_ms: float
+    created_at: datetime
+
+
+class DashboardMetricOut(BaseModel):
+    label: str
+    value: str
+    hint: str
+    icon: str
+    variant: str
+
+
+class DashboardRecentSummaryOut(BaseModel):
+    id: str
+    file: str
+    details: str
+    summary: str
+    status: str
+    date: datetime
+    type: Literal["individual", "integrated"]
+
+
+class DashboardOut(BaseModel):
+    metrics: list[DashboardMetricOut]
+    recent_summaries: list[DashboardRecentSummaryOut]

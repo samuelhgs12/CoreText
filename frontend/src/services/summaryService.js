@@ -1,26 +1,13 @@
 import { apiRequest } from "./api";
 
-const mockSummaryContent = `Este resumo destaca os principais pontos do documento selecionado, organizando as informações em uma leitura rápida para apoiar revisão e tomada de decisão.
-
-Principais pontos identificados:
-- O documento apresenta conceitos centrais e exemplos práticos relacionados ao tema.
-- As seções mais relevantes foram condensadas em tópicos objetivos.
-- Há oportunidades de aprofundamento em definições, aplicações e possíveis impactos.
-
-Conclusão:
-O material pode ser usado como base para estudo, revisão e consulta rápida, preservando os pontos essenciais do conteúdo original.`;
-
-function wait(ms = 900) {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
-}
-
 function normalizeIndividualSummary(summary, files) {
+  const fileName = files[0] || `Arquivo #${summary.file_id}`;
+
   return {
-    id: summary.id,
+    id: `individual-${summary.id}`,
     type: "individual",
-    fileName: files[0] || `Arquivo #${summary.file_id}`,
+    fileName,
+    title: fileName,
     files,
     content: summary.content,
     generatedAt: summary.created_at,
@@ -31,9 +18,10 @@ function normalizeIndividualSummary(summary, files) {
 
 function normalizeIntegratedSummary(summary, files) {
   return {
-    id: summary.id,
+    id: `integrated-${summary.id}`,
     type: "integrated",
     fileName: "",
+    title: `Resumo integrado de ${files.length} arquivos`,
     files,
     content: summary.content,
     generatedAt: summary.created_at,
@@ -42,24 +30,36 @@ function normalizeIntegratedSummary(summary, files) {
   };
 }
 
-function createMockSummary({ mode, fileIds, fileNames }) {
-  const isIntegrated = mode === "integrated" || fileIds.length > 1;
-
+function normalizeHistorySummary(summary) {
   return {
-    id: `mock-summary-${Date.now()}`,
-    type: isIntegrated ? "integrated" : "individual",
-    fileName: fileNames[0] || "Documento selecionado.pdf",
-    files: fileNames.length ? fileNames : fileIds.map((fileId) => `Arquivo #${fileId}`),
-    content: isIntegrated
-      ? `${mockSummaryContent}
-
-Resumo integrado:
-Os documentos selecionados foram comparados em conjunto para produzir uma visão consolidada. A síntese combina recorrências, conceitos complementares e pontos de convergência entre os arquivos.`
-      : mockSummaryContent,
-    generatedAt: new Date().toISOString(),
-    generationTimeMs: 842,
-    source: "mock",
+    id: summary.id,
+    type: summary.type,
+    fileName: summary.type === "individual" ? summary.title : "",
+    title: summary.title,
+    files: summary.files,
+    content: summary.content,
+    generatedAt: summary.created_at,
+    generationTimeMs: summary.generation_time_ms,
+    source: "api",
   };
+}
+
+export async function listSummaries() {
+  const summaries = await apiRequest("/summaries");
+
+  return summaries.map(normalizeHistorySummary);
+}
+
+export async function deleteSummary(summaryId) {
+  const [summaryType, rawId] = String(summaryId).split("-");
+
+  if (!summaryType || !rawId) {
+    throw new Error("Resumo inválido para exclusão.");
+  }
+
+  await apiRequest(`/summaries/${summaryType}/${rawId}`, {
+    method: "DELETE",
+  });
 }
 
 export async function generateSummary({ mode = "individual", fileIds = [], fileNames = [] }) {
@@ -69,25 +69,20 @@ export async function generateSummary({ mode = "individual", fileIds = [], fileN
 
   const shouldGenerateIntegrated = mode === "integrated" || fileIds.length > 1;
 
-  try {
-    if (shouldGenerateIntegrated) {
-      const summary = await apiRequest("/summaries/integrated", {
-        method: "POST",
-        body: JSON.stringify({
-          file_ids: fileIds,
-        }),
-      });
-
-      return normalizeIntegratedSummary(summary, fileNames);
-    }
-
-    const summary = await apiRequest(`/files/${fileIds[0]}/summary`, {
+  if (shouldGenerateIntegrated) {
+    const summary = await apiRequest("/summaries/integrated", {
       method: "POST",
+      body: JSON.stringify({
+        file_ids: fileIds,
+      }),
     });
 
-    return normalizeIndividualSummary(summary, fileNames);
-  } catch {
-    await wait();
-    return createMockSummary({ mode, fileIds, fileNames });
+    return normalizeIntegratedSummary(summary, fileNames);
   }
+
+  const summary = await apiRequest(`/files/${fileIds[0]}/summary`, {
+    method: "POST",
+  });
+
+  return normalizeIndividualSummary(summary, fileNames);
 }

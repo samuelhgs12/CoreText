@@ -41,3 +41,24 @@ export async function apiRequest(path, options = {}) {
 
   return data;
 }
+
+export async function apiBlobRequest(path, options = {}) {
+  const token = getAuthToken();
+
+  const response = await fetch(resolveUrl(path), {
+    ...options,
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options.headers,
+    },
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => null);
+    const message =
+      data?.detail || "Não foi possível carregar o arquivo. Tente novamente.";
+    throw new ApiError(message, response.status);
+  }
+
+  return response.blob();
+}

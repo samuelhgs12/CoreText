@@ -1,35 +1,4 @@
-import { apiRequest } from "./api";
-
-const mockFiles = [
-  {
-    id: 101,
-    filename: "Inteligência Artificial na Educação.pdf",
-    content_type: "application/pdf",
-    file_size_bytes: 1258291,
-    uploaded_at: "2026-07-02T13:32:00Z",
-  },
-  {
-    id: 102,
-    filename: "Aprendizado de Máquina Avançado.pdf",
-    content_type: "application/pdf",
-    file_size_bytes: 2831155,
-    uploaded_at: "2026-07-01T18:45:00Z",
-  },
-  {
-    id: 103,
-    filename: "Processamento de Linguagem Natural.pdf",
-    content_type: "application/pdf",
-    file_size_bytes: 1887436,
-    uploaded_at: "2026-06-29T14:02:00Z",
-  },
-  {
-    id: 104,
-    filename: "Redes Neurais e Deep Learning.pdf",
-    content_type: "application/pdf",
-    file_size_bytes: 3565158,
-    uploaded_at: "2026-06-26T20:14:00Z",
-  },
-];
+import { apiBlobRequest, apiRequest } from "./api";
 
 function normalizeFile(file) {
   return {
@@ -42,37 +11,71 @@ function normalizeFile(file) {
   };
 }
 
-function wait(ms = 250) {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
+function validatePdf(file) {
+  if (!file) {
+    throw new Error("Selecione um arquivo PDF para enviar.");
+  }
+
+  const hasPdfName = file.name.toLowerCase().endsWith(".pdf");
+  const hasPdfType = file.type === "application/pdf" || file.type === "";
+
+  if (!hasPdfName || !hasPdfType) {
+    throw new Error("Arquivo inválido. Envie apenas PDFs.");
+  }
 }
 
 export async function listFiles() {
-  try {
-    const files = await apiRequest("/files");
+  const files = await apiRequest("/files");
 
-    return {
-      files: files.map(normalizeFile),
-      source: "api",
-      message: "",
-    };
-  } catch {
-    return {
-      files: mockFiles.map(normalizeFile),
-      source: "mock",
-      message: "Backend indisponível. Exibindo arquivos mockados para demonstração.",
-    };
-  }
+  return {
+    files: files.map(normalizeFile),
+  };
 }
 
-export async function deleteFile(fileId, source = "api") {
-  if (source === "mock") {
-    await wait();
-    return;
-  }
+export async function uploadFile(file) {
+  validatePdf(file);
 
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const uploadedFile = await apiRequest("/files", {
+    method: "POST",
+    body: formData,
+  });
+
+  return normalizeFile(uploadedFile);
+}
+
+export async function deleteFile(fileId) {
   await apiRequest(`/files/${fileId}`, {
     method: "DELETE",
   });
+}
+
+export async function viewFile(fileId, targetWindow = null) {
+  const blob = await apiBlobRequest(`/files/${fileId}/content`);
+  const fileUrl = URL.createObjectURL(blob);
+
+  if (targetWindow) {
+    targetWindow.location.href = fileUrl;
+  } else {
+    window.open(fileUrl, "_blank", "noopener,noreferrer");
+  }
+
+  setTimeout(() => {
+    URL.revokeObjectURL(fileUrl);
+  }, 60_000);
+}
+
+export async function downloadFile(fileId, filename) {
+  const blob = await apiBlobRequest(`/files/${fileId}/download`);
+  const fileUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = fileUrl;
+  link.download = filename || "documento.pdf";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(fileUrl);
 }

@@ -469,40 +469,47 @@ button {
 }
 
 .metric-card {
-  min-height: 126px;
+  min-height: 112px;
   display: flex;
-  align-items: center;
-  gap: 18px;
-  padding: 22px;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 18px 20px;
   border: 1px solid var(--border);
   border-radius: 14px;
   background: var(--surface);
   box-shadow: var(--shadow);
 }
 
+.metric-content {
+  min-width: 0;
+  padding-top: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
 .metric-card p {
-  margin: 0 0 4px;
+  margin: 0;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 15px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .metric-card strong {
   display: block;
+  margin-top: 6px;
   color: var(--text-h);
   font-size: 30px;
-  line-height: 1;
-}
-
-.metric-card span {
-  display: block;
-  margin-top: 10px;
-  color: var(--accent);
-  font-size: 14px;
-  font-weight: 800;
+  line-height: 1.05;
 }
 
 .metric-icon {
   flex: 0 0 auto;
-  width: 56px;
-  height: 56px;
+  width: 52px;
+  height: 52px;
   border-radius: 12px;
   display: grid;
   place-items: center;
@@ -728,6 +735,8 @@ button {
 
 .upload-panel {
   padding: 16px;
+  display: grid;
+  gap: 16px;
 }
 
 .dropzone {
@@ -740,11 +749,19 @@ button {
   gap: 12px;
   text-align: center;
   background: var(--dropzone-bg);
+  cursor: pointer;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 }
 
 .dropzone h2 {
   margin: 0;
   font-size: 24px;
+}
+
+.dropzone.dragging {
+  border-color: var(--accent);
+  box-shadow: 0 18px 36px rgba(7, 92, 255, 0.12);
+  transform: translateY(-1px);
 }
 
 .pdf-icon {
@@ -768,7 +785,6 @@ button {
 }
 
 .selected-file {
-  margin-top: 16px;
   padding: 14px 18px;
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -779,7 +795,6 @@ button {
 }
 
 .upload-button {
-  margin-top: 16px;
   width: fit-content;
 }
 
@@ -1090,6 +1105,76 @@ button {
 
 .summary-state-card.error {
   border-color: rgba(220, 38, 38, 0.2);
+}
+
+.summary-history-card {
+  padding: 22px;
+}
+
+.summary-history-list {
+  display: grid;
+  gap: 10px;
+}
+
+.summary-history-item {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  color: inherit;
+  text-align: left;
+  background: var(--row-bg);
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.summary-history-item > button:first-child {
+  min-width: 0;
+  border: 0;
+  padding: 14px 0 14px 16px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  cursor: pointer;
+}
+
+.summary-history-item > .icon-button {
+  margin-right: 10px;
+}
+
+.summary-history-item:hover,
+.summary-history-item.active {
+  border-color: rgba(7, 92, 255, 0.28);
+  background: var(--surface-soft);
+  box-shadow: 0 12px 24px rgba(8, 23, 53, 0.06);
+}
+
+.summary-history-item strong,
+.summary-history-item p {
+  margin: 0;
+}
+
+.summary-history-item strong {
+  display: block;
+  overflow: hidden;
+  color: var(--text-h);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.summary-history-item p {
+  margin-top: 5px;
+}
+
+.summary-history-item > button:first-child > svg {
+  color: var(--accent);
 }
 
 .loading-spinner {
