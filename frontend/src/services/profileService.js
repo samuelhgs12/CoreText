@@ -4,18 +4,12 @@ import { getCurrentUser, updateCurrentUser } from "./authService";
 const PROFILE_STORAGE_KEY = "coretext-profile";
 
 const fallbackProfile = {
-  name: "Kayke Silva",
-  username: "kayke",
-  email: "kayke@example.com",
+  name: "",
+  username: "",
+  email: "",
   avatarUrl: "",
-  createdAt: "2024-04-12T12:00:00Z",
+  createdAt: "",
 };
-
-function wait(ms = 250) {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
-}
 
 function getProfileStorageKey(user) {
   const identifier = user?.id || user?.email || user?.username;
@@ -73,8 +67,10 @@ export async function getProfile() {
 
     persistProfile(profile, user);
     return profile;
-  } catch {
-    await wait();
+  } catch (error) {
+    if (!storedProfile && !currentUser) {
+      throw error;
+    }
   }
 
   return normalizeProfile({
@@ -86,8 +82,6 @@ export async function getProfile() {
 }
 
 export async function updateProfile(profile) {
-  await wait();
-
   const currentUser = getCurrentUser();
   const normalizedProfile = normalizeProfile({
     ...profile,
@@ -101,36 +95,47 @@ export async function updateProfile(profile) {
     throw new Error("Preencha nome completo, username e e-mail para salvar o perfil.");
   }
 
-  let source = "mock";
+  const updatedUser = await apiRequest("/auth/me", {
+    method: "PATCH",
+    body: JSON.stringify({
+      full_name: normalizedProfile.name,
+      username: normalizedProfile.username,
+      email: normalizedProfile.email,
+    }),
+  });
 
-  if (currentUser?.id && /^\d+$/.test(String(currentUser.id))) {
-    try {
-      const updatedUser = await apiRequest("/auth/me", {
-        method: "PATCH",
-        body: JSON.stringify({
-          full_name: normalizedProfile.name,
-          username: normalizedProfile.username,
-          email: normalizedProfile.email,
-        }),
-      });
-      normalizedProfile.name = updatedUser.full_name || updatedUser.username;
-      normalizedProfile.username = updatedUser.username;
-      normalizedProfile.email = updatedUser.email;
-      normalizedProfile.createdAt = updatedUser.created_at;
-      source = "api";
-    } catch {
-      source = "mock";
-    }
-  }
+  normalizedProfile.name = updatedUser.full_name || updatedUser.username;
+  normalizedProfile.username = updatedUser.username;
+  normalizedProfile.email = updatedUser.email;
+  normalizedProfile.createdAt = updatedUser.created_at;
 
   persistProfile(normalizedProfile, currentUser || normalizedProfile);
 
   return {
     profile: normalizedProfile,
-    source,
-    message:
-      source === "api"
-        ? "Perfil atualizado com sucesso."
-        : "Perfil salvo localmente. A atualização via backend será usada quando a rota estiver disponível.",
+    source: "api",
+    message: "Perfil atualizado com sucesso.",
+  };
+}
+
+export async function updateProfileAvatar(avatarUrl) {
+  const currentUser = getCurrentUser();
+  const storedProfile = getStoredProfile(currentUser);
+  const normalizedProfile = normalizeProfile({
+    ...storedProfile,
+    name: storedProfile?.name || currentUser?.name || "",
+    username: storedProfile?.username || currentUser?.username || "",
+    email: storedProfile?.email || currentUser?.email || "",
+    createdAt: storedProfile?.createdAt || currentUser?.createdAt || "",
+    avatarUrl,
+    updatedAt: new Date().toISOString(),
+  });
+
+  persistProfile(normalizedProfile, currentUser || normalizedProfile);
+
+  return {
+    profile: normalizedProfile,
+    source: "local",
+    message: "Foto de perfil atualizada neste navegador.",
   };
 }

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import Icon from "../components/Icon";
 import { getDashboard } from "../services/dashboardService";
-import { getProfile, updateProfile } from "../services/profileService";
+import { getProfile, updateProfileAvatar } from "../services/profileService";
 
 const initialForm = {
   name: "",
@@ -22,6 +22,10 @@ function getInitials(name) {
 }
 
 function formatDate(date) {
+  if (!date) {
+    return "Data não disponível";
+  }
+
   return new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",
     month: "long",
@@ -146,7 +150,7 @@ function Profile() {
       setFeedback(null);
 
       try {
-        const result = await updateProfile(nextProfile);
+        const result = await updateProfileAvatar(nextProfile.avatarUrl);
 
         setProfile(result.profile);
         setFormData({
@@ -156,11 +160,8 @@ function Profile() {
           avatarUrl: result.profile.avatarUrl,
         });
         setFeedback({
-          type: result.source === "api" ? "success" : "info",
-          text:
-            result.source === "api"
-              ? "Foto de perfil atualizada com sucesso."
-              : "Foto de perfil salva localmente. A atualização via backend será usada quando a rota estiver disponível.",
+          type: "success",
+          text: result.message,
         });
       } catch (error) {
         setFeedback({
@@ -233,17 +234,17 @@ function Profile() {
             <div className="profile-readonly-list">
               <div>
                 <span>Nome completo</span>
-                <strong>{formData.name || "Kayke Silva"}</strong>
+                <strong>{formData.name || "Nome não informado"}</strong>
               </div>
 
               <div>
                 <span>Username</span>
-                <strong>@{formData.username || "kayke"}</strong>
+                <strong>{formData.username ? `@${formData.username}` : "Username não informado"}</strong>
               </div>
 
               <div>
                 <span>E-mail</span>
-                <strong>{formData.email || "kayke@example.com"}</strong>
+                <strong>{formData.email || "E-mail não informado"}</strong>
               </div>
             </div>
           </div>
@@ -260,7 +261,7 @@ function Profile() {
                 </span>
                 <div>
                   <p className="muted-text">Data de criação</p>
-                  <strong>{formatDate(profile?.createdAt || "2024-04-12T12:00:00Z")}</strong>
+                  <strong>{formatDate(profile?.createdAt)}</strong>
                 </div>
               </div>
 
@@ -270,7 +271,7 @@ function Profile() {
                 </span>
                 <div>
                   <p className="muted-text">Username</p>
-                  <strong>@{formData.username || "kayke"}</strong>
+                  <strong>{formData.username ? `@${formData.username}` : "Username não informado"}</strong>
                 </div>
               </div>
 
@@ -280,7 +281,7 @@ function Profile() {
                 </span>
                 <div>
                   <p className="muted-text">E-mail cadastrado</p>
-                  <strong>{formData.email || "kayke@example.com"}</strong>
+                  <strong>{formData.email || "E-mail não informado"}</strong>
                 </div>
               </div>
             </div>
