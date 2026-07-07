@@ -27,7 +27,7 @@ services:
       target: development
     container_name: coretext-api-dev
     environment:
-      DATABASE_URL: postgresql://coretext:dev_password@database:5432/coretext
+      DATABASE_URL: postgresql+psycopg://coretext:dev_password@database:5432/coretext
       DEBUG: "True"
       LOG_LEVEL: debug
     ports:
