@@ -79,6 +79,7 @@
 
 body {
   margin: 0;
+  min-width: 320px;
   background:
     radial-gradient(circle at top right, var(--body-glow), transparent 34%),
     var(--bg);
@@ -92,6 +93,7 @@ body {
 
 button,
 input {
+  min-width: 0;
   font: inherit;
 }
 
@@ -251,10 +253,19 @@ button {
 }
 
 .topbar-actions {
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 16px;
   color: var(--text-h);
+}
+
+.topbar-actions > strong {
+  min-width: 0;
+  max-width: min(34vw, 220px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .theme-toggle {
@@ -318,6 +329,7 @@ button {
   width: min(100%, 1360px);
   margin: 0 auto;
   padding: 0 clamp(24px, 4vw, 48px) 44px;
+  overflow: hidden;
 }
 
 .page-stack {
@@ -389,6 +401,7 @@ button {
 .text-button,
 .ghost-button {
   border: 0;
+  max-width: 100%;
   color: var(--accent);
   font-weight: 800;
   text-decoration: none;
@@ -411,6 +424,7 @@ button {
 }
 
 .primary-button {
+  max-width: 100%;
   border: 0;
   border-radius: 10px;
   padding: 14px 24px;
@@ -423,6 +437,12 @@ button {
   font-weight: 800;
   cursor: pointer;
   box-shadow: 0 12px 24px rgba(7, 92, 255, 0.18);
+}
+
+.text-button,
+.ghost-button,
+.primary-button {
+  white-space: nowrap;
 }
 
 .primary-button:hover {
@@ -2241,6 +2261,10 @@ button {
 }
 
 @media (max-width: 1180px) {
+  .main-content {
+    width: 100%;
+  }
+
   .metrics-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2272,8 +2296,55 @@ button {
     display: none;
   }
 
+  .summary-table-row,
   .files-table-row {
-    gap: 12px;
+    align-items: stretch;
+    gap: 14px;
+    padding: 18px;
+  }
+
+  .files-table-row {
+    position: relative;
+  }
+
+  .summary-table-row > span,
+  .files-table-row > span {
+    min-width: 0;
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .summary-table-row > span::before,
+  .files-table-row > span::before {
+    flex: 0 0 auto;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 800;
+  }
+
+  .summary-table-row > span:nth-of-type(1)::before {
+    content: "Resumo";
+  }
+
+  .summary-table-row > span:nth-of-type(2)::before {
+    content: "Status";
+  }
+
+  .summary-table-row > span:nth-of-type(3)::before {
+    content: "Criado em";
+  }
+
+  .files-table-row > span:nth-of-type(1)::before {
+    content: "Tamanho";
+  }
+
+  .files-table-row > span:nth-of-type(2)::before {
+    content: "Upload";
+  }
+
+  .files-table-row > span:nth-of-type(3)::before {
+    content: "Status";
   }
 
   .files-selection-bar,
@@ -2322,12 +2393,51 @@ button {
 }
 
 @media (max-width: 900px) {
+  .app-layout {
+    display: block;
+  }
+
   .sidebar {
     position: static;
     width: auto;
+    padding: 18px 20px;
     min-height: auto;
     border-right: 0;
     border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar > div:first-child {
+    min-width: 0;
+  }
+
+  .sidebar-brand {
+    margin: 0 0 18px;
+  }
+
+  .sidebar-brand strong {
+    font-size: 26px;
+  }
+
+  .sidebar-nav {
+    margin: 0 -4px;
+    padding: 2px 4px 8px;
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  .sidebar-link {
+    width: auto;
+    flex: 0 0 auto;
+    padding: 12px 14px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  .sidebar-link:hover {
+    transform: none;
   }
 
   .content-column {
@@ -2337,6 +2447,12 @@ button {
   .topbar {
     height: auto;
     padding: 18px 24px;
+    justify-content: flex-start;
+  }
+
+  .topbar-actions {
+    width: 100%;
+    justify-content: flex-end;
   }
 
   .main-content {
@@ -2351,6 +2467,15 @@ button {
   .page-heading {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .section-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .section-header .text-button {
+    align-self: flex-start;
   }
 
   .summary-result-header {
@@ -2447,8 +2572,47 @@ button {
 }
 
 @media (max-width: 620px) {
+  .page-stack {
+    gap: 18px;
+  }
+
+  .page-heading h1 {
+    font-size: 32px;
+  }
+
+  .card-surface {
+    padding: 16px;
+    border-radius: 12px;
+  }
+
+  .topbar {
+    padding: 14px 16px;
+  }
+
+  .topbar-actions {
+    gap: 10px;
+  }
+
+  .topbar-actions > strong {
+    max-width: 38vw;
+  }
+
+  .avatar-small {
+    width: 38px;
+    height: 38px;
+  }
+
+  .main-content {
+    padding: 0 14px 28px;
+  }
+
   .metrics-grid {
     grid-template-columns: 1fr;
+  }
+
+  .metric-card {
+    min-height: 104px;
+    padding: 16px;
   }
 
   .quick-card {
@@ -2465,8 +2629,23 @@ button {
     flex-direction: column;
   }
 
+  .selected-file .icon-button,
+  .upload-button,
+  .primary-button {
+    width: 100%;
+  }
+
   .auth-page {
     padding: 16px;
+  }
+
+  .dropzone {
+    min-height: 220px;
+    padding: 22px 16px;
+  }
+
+  .dropzone h2 {
+    font-size: 21px;
   }
 
   .files-selection-bar,
@@ -2485,6 +2664,65 @@ button {
   .files-actions .primary-button {
     width: 100%;
     justify-content: center;
+  }
+
+  .files-table-row,
+  .summary-table-row {
+    padding: 16px;
+  }
+
+  .summary-table-row > span,
+  .files-table-row > span {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .row-actions {
+    width: 100%;
+  }
+
+  .row-actions .icon-button {
+    flex: 1;
+  }
+
+  .summary-history-card,
+  .summary-result-header,
+  .summary-files-section,
+  .summary-content-section,
+  .summary-meta-grid {
+    padding: 18px;
+  }
+
+  .summary-history-item {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .summary-history-item > button:first-child {
+    padding: 14px;
+    grid-template-columns: 1fr;
+  }
+
+  .summary-history-item > .icon-button {
+    width: calc(100% - 28px);
+    margin: 0 14px 14px;
+  }
+
+  .summary-result-header h2 {
+    font-size: 24px;
+  }
+
+  .summary-result-header .ghost-button,
+  .summary-file-list span {
+    width: 100%;
+    justify-content: center;
+    white-space: normal;
+  }
+
+  .summary-content {
+    padding: 16px;
+    font-size: 15px;
   }
 
   .profile-editor-card,
@@ -2536,5 +2774,92 @@ button {
 
   .auth-divider {
     gap: 14px;
+  }
+}
+
+@media (max-width: 420px) {
+  .sidebar {
+    padding-inline: 14px;
+  }
+
+  .sidebar-brand strong {
+    font-size: 23px;
+  }
+
+  .logo-box {
+    width: 40px;
+    height: 40px;
+  }
+
+  .logo-page {
+    width: 30px;
+    height: 37px;
+  }
+
+  .sidebar-link {
+    padding: 11px 12px;
+    gap: 8px;
+    font-size: 14px;
+  }
+
+  .topbar-actions > strong {
+    max-width: 30vw;
+  }
+
+  .theme-toggle,
+  .theme-toggle-track {
+    width: 48px;
+  }
+
+  .theme-toggle[aria-pressed="true"] .theme-toggle-thumb {
+    transform: translateX(16px);
+  }
+
+  .page-heading h1 {
+    font-size: 29px;
+  }
+
+  .metric-card {
+    gap: 12px;
+  }
+
+  .metric-icon {
+    width: 46px;
+    height: 46px;
+  }
+
+  .metric-card strong {
+    font-size: 26px;
+  }
+
+  .auth-card,
+  .auth-page:has(.auth-visual-register) .auth-card {
+    padding: 24px 16px;
+  }
+
+  .auth-brand strong {
+    font-size: 27px;
+  }
+
+  .auth-copy h1 {
+    font-size: 26px;
+  }
+
+  .field input {
+    min-height: 50px;
+    padding-inline: 14px;
+  }
+
+  .input-shell input {
+    padding-left: 48px;
+    padding-right: 46px;
+  }
+
+  .input-icon {
+    left: 16px;
+  }
+
+  .field-icon-button {
+    right: 12px;
   }
 }
