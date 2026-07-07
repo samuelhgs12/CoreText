@@ -13,7 +13,7 @@ services:
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U coretext"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -27,7 +27,7 @@ services:
       target: development
     container_name: coretext-api-dev
     environment:
-      DATABASE_URL: postgresql://coretext:dev_password@database:5432/coretext
+      DATABASE_URL: postgresql+psycopg://coretext:dev_password@database:5432/coretext
       DEBUG: "True"
       LOG_LEVEL: debug
     ports:
@@ -40,7 +40,7 @@ services:
         condition: service_healthy
     command: >
       sh -c "pip install -r requirements.txt && 
-      uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+      uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     restart: unless-stopped
 
 
